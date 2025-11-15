@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { apiFetch, formatCurrency, formatDate, validators } from '@/lib/utils';
+import { apiFetch, formatCurrency, formatDate, validators, useDebounce } from '@/lib/utils';
 import { Plus, Search, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 
@@ -32,10 +32,15 @@ export default function EmployeesPage({ user }) {
     salary: '',
   });
 
+  const debouncedSearch = useDebounce(search, 500);
+
+  useEffect(() => {
+    loadDepartments();
+  }, []);
+
   useEffect(() => {
     loadEmployees();
-    loadDepartments();
-  }, [search, department, page]);
+  }, [debouncedSearch, department, page]);
 
   const loadDepartments = async () => {
     try {
@@ -76,7 +81,7 @@ export default function EmployeesPage({ user }) {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '10',
-        ...(search && { search }),
+        ...(debouncedSearch && { search: debouncedSearch }),
         ...(department !== 'all' && { department }),
       });
 
@@ -251,6 +256,7 @@ export default function EmployeesPage({ user }) {
                   setPage(1);
                 }}
                 className="pl-10"
+                aria-label="Search employees by name or position"
               />
             </div>
             <Select
@@ -260,7 +266,7 @@ export default function EmployeesPage({ user }) {
                 setPage(1);
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger aria-label="Filter by department">
                 <SelectValue placeholder="Select department" />
               </SelectTrigger>
               <SelectContent>
@@ -357,6 +363,7 @@ export default function EmployeesPage({ user }) {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => openEditDialog(employee)}
+                                aria-label={`Edit ${employee.name}`}
                               >
                                 <Edit className="w-4 h-4" />
                               </Button>
@@ -364,6 +371,7 @@ export default function EmployeesPage({ user }) {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => openDeleteDialog(employee)}
+                                aria-label={`Delete ${employee.name}`}
                               >
                                 <Trash2 className="w-4 h-4 text-destructive" />
                               </Button>
@@ -444,6 +452,7 @@ export default function EmployeesPage({ user }) {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
+                  aria-label="Employee name"
                 />
               </div>
               <div className="space-y-2">
@@ -467,7 +476,7 @@ export default function EmployeesPage({ user }) {
                   onValueChange={(value) => setFormData({ ...formData, department: value })}
                   required
                 >
-                  <SelectTrigger>
+                  <SelectTrigger aria-label="Select department">
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
@@ -486,6 +495,7 @@ export default function EmployeesPage({ user }) {
                   value={formData.position}
                   onChange={(e) => setFormData({ ...formData, position: e.target.value })}
                   required
+                  aria-label="Employee position"
                 />
               </div>
               <div className="space-y-2">
@@ -496,6 +506,9 @@ export default function EmployeesPage({ user }) {
                   value={formData.salary}
                   onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
                   required
+                  aria-label="Employee salary"
+                  min="0"
+                  step="0.01"
                 />
               </div>
             </div>

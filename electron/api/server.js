@@ -2,14 +2,32 @@ const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 
 const prisma = new PrismaClient();
 const app = express();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
 
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit login attempts to 5 per windowMs
+  message: 'Too many login attempts, please try again later.',
+  skipSuccessfulRequests: true,
+});
+
 // Middleware
 app.use(express.json());
+app.use('/api/', limiter); // Apply rate limiting to all API routes
 
 // CORS for Electron renderer
 app.use((req, res, next) => {
@@ -53,7 +71,7 @@ const authorize = (...roles) => {
 // ==================== AUTH ROUTES ====================
 
 // POST /api/auth/login - Login
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -220,11 +238,16 @@ app.post('/api/employees', authenticateToken, authorize('ADMIN'), async (req, re
       return res.status(400).json({ error: 'Salary must be a valid positive number' });
     }
 
+    // Sanitize inputs
+    const sanitizedName = name.trim().replace(/[<>]/g, '').replace(/javascript:/gi, '');
+    const sanitizedDept = department.trim().replace(/[<>]/g, '').replace(/javascript:/gi, '');
+    const sanitizedPosition = position.trim().replace(/[<>]/g, '').replace(/javascript:/gi, '');
+
     const employee = await prisma.employee.create({
       data: {
-        name: name.trim(),
-        department: department.trim(),
-        position: position.trim(),
+        name: sanitizedName,
+        department: sanitizedDept,
+        position: sanitizedPosition,
         salary: numSalary,
       },
     });
@@ -472,12 +495,28 @@ app.get('/api/logs', authenticateToken, authorize('ADMIN'), async (req, res) => 
 
 // ==================== DEPARTMENT ROUTES ====================
 
+// Simple in-memory cache for departments and categories
+const cache = {
+  departments: { data: null, timestamp: null },
+  categories: { data: null, timestamp: null },
+};
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 // GET /api/departments - Get all departments
 app.get('/api/departments', authenticateToken, async (req, res) => {
   try {
+    const now = Date.now();
+    // Check cache
+    if (cache.departments.data && cache.departments.timestamp && (now - cache.departments.timestamp) < CACHE_TTL) {
+      return res.json(cache.departments.data);
+    }
+
     const departments = await prisma.department.findMany({
       orderBy: { name: 'asc' },
     });
+    
+    // Update cache
+    cache.departments = { data: departments, timestamp: now };
     res.json(departments);
   } catch (error) {
     console.error('Get departments error:', error);
@@ -517,6 +556,9 @@ app.post('/api/departments', authenticateToken, authorize('ADMIN', 'HR'), async 
       },
     });
 
+    // Invalidate cache
+    cache.departments = { data: null, timestamp: null };
+
     res.status(201).json(department);
   } catch (error) {
     console.error('Create department error:', error);
@@ -548,6 +590,9 @@ app.put('/api/departments/:id', authenticateToken, authorize('ADMIN', 'HR'), asy
         details: `Updated department: ${department.name}`,
       },
     });
+
+    // Invalidate cache
+    cache.departments = { data: null, timestamp: null };
 
     res.json(department);
   } catch (error) {
@@ -590,6 +635,9 @@ app.delete('/api/departments/:id', authenticateToken, authorize('ADMIN'), async 
       },
     });
 
+    // Invalidate cache
+    cache.departments = { data: null, timestamp: null };
+
     res.json({ message: 'Department deleted successfully' });
   } catch (error) {
     console.error('Delete department error:', error);
@@ -602,9 +650,18 @@ app.delete('/api/departments/:id', authenticateToken, authorize('ADMIN'), async 
 // GET /api/feedback-categories - Get all feedback categories
 app.get('/api/feedback-categories', authenticateToken, async (req, res) => {
   try {
+    const now = Date.now();
+    // Check cache
+    if (cache.categories.data && cache.categories.timestamp && (now - cache.categories.timestamp) < CACHE_TTL) {
+      return res.json(cache.categories.data);
+    }
+
     const categories = await prisma.feedbackCategory.findMany({
       orderBy: { name: 'asc' },
     });
+    
+    // Update cache
+    cache.categories = { data: categories, timestamp: now };
     res.json(categories);
   } catch (error) {
     console.error('Get feedback categories error:', error);
@@ -644,6 +701,9 @@ app.post('/api/feedback-categories', authenticateToken, authorize('ADMIN', 'HR')
       },
     });
 
+    // Invalidate cache
+    cache.categories = { data: null, timestamp: null };
+
     res.status(201).json(category);
   } catch (error) {
     console.error('Create feedback category error:', error);
@@ -675,6 +735,9 @@ app.put('/api/feedback-categories/:id', authenticateToken, authorize('ADMIN', 'H
         details: `Updated feedback category: ${category.name}`,
       },
     });
+
+    // Invalidate cache
+    cache.categories = { data: null, timestamp: null };
 
     res.json(category);
   } catch (error) {
@@ -716,6 +779,9 @@ app.delete('/api/feedback-categories/:id', authenticateToken, authorize('ADMIN')
         details: `Deleted feedback category: ${category.name}`,
       },
     });
+
+    // Invalidate cache
+    cache.categories = { data: null, timestamp: null };
 
     res.json({ message: 'Feedback category deleted successfully' });
   } catch (error) {

@@ -1,3 +1,4 @@
+import React from "react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -181,4 +182,31 @@ export const validators = {
     }
     return null;
   },
+};
+
+// Debounce utility for search inputs
+export const useDebounce = (value, delay = 500) => {
+  const [debouncedValue, setDebouncedValue] = React.useState(value);
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
+// Input sanitization helper
+export const sanitizeInput = (input) => {
+  if (typeof input !== 'string') return input;
+  return input
+    .trim()
+    .replace(/[<>]/g, '') // Remove potential HTML tags
+    .replace(/javascript:/gi, '') // Remove javascript: protocol
+    .replace(/on\w+=/gi, ''); // Remove event handlers
 };

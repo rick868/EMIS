@@ -162,7 +162,7 @@ export default function FeedbackPage({ user }) {
             </TabsList>
             
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="w-full sm:w-48">
+              <SelectTrigger className="w-full sm:w-48" aria-label="Filter feedback by category">
                 <Filter className="w-4 h-4 mr-2" />
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
@@ -351,6 +351,8 @@ export default function FeedbackPage({ user }) {
                   placeholder="Share your feedback here..."
                   rows={6}
                   required
+                  aria-label="Feedback message"
+                  maxLength={2000}
                 />
               </div>
             </div>

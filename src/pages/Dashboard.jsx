@@ -96,6 +96,7 @@ export default function Dashboard({ user, onLogout }) {
             variant="ghost"
             className="w-full justify-start"
             onClick={onLogout}
+            aria-label="Logout"
           >
             <LogOut className="w-4 h-4 mr-2" />
             Logout
@@ -113,6 +114,7 @@ export default function Dashboard({ user, onLogout }) {
               size="icon"
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="md:hidden"
+              aria-label="Toggle sidebar"
             >
               <Menu className="w-5 h-5" />
             </Button>
@@ -125,6 +127,7 @@ export default function Dashboard({ user, onLogout }) {
             variant="ghost"
             size="icon"
             onClick={toggleDarkMode}
+            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </Button>

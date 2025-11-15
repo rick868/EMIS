@@ -812,6 +812,9 @@ export default function SettingsPage({ user }) {
                   value={formData.username}
                   onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                   required
+                  aria-label="Username"
+                  minLength={3}
+                  maxLength={50}
                 />
               </div>
               <div className="space-y-2">
@@ -822,6 +825,7 @@ export default function SettingsPage({ user }) {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
+                  aria-label="Email address"
                 />
               </div>
               <div className="space-y-2">
@@ -832,6 +836,8 @@ export default function SettingsPage({ user }) {
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
+                  aria-label="Password"
+                  minLength={6}
                 />
               </div>
               <div className="space-y-2">
@@ -886,6 +892,8 @@ export default function SettingsPage({ user }) {
                   value={deptFormData.name}
                   onChange={(e) => setDeptFormData({ ...deptFormData, name: e.target.value })}
                   required
+                  aria-label="Department name"
+                  maxLength={100}
                 />
               </div>
               <div className="space-y-2">
@@ -973,6 +981,8 @@ export default function SettingsPage({ user }) {
                   value={catFormData.name}
                   onChange={(e) => setCatFormData({ ...catFormData, name: e.target.value })}
                   required
+                  aria-label="Category name"
+                  maxLength={100}
                 />
               </div>
               <div className="space-y-2">

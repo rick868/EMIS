@@ -68,6 +68,8 @@ export default function Login({ onLogin }) {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={loading}
+                aria-label="Email address"
+                autoComplete="email"
               />
             </div>
             <div className="space-y-2">
@@ -80,6 +82,8 @@ export default function Login({ onLogin }) {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loading}
+                aria-label="Password"
+                autoComplete="current-password"
               />
             </div>
             
@@ -90,7 +94,7 @@ export default function Login({ onLogin }) {
               </div>
             )}
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading} aria-label="Sign in">
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
 
