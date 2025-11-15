@@ -5,10 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { apiFetch, formatCurrency, formatDate } from '@/lib/utils';
+import { apiFetch, formatCurrency, formatDate, validators } from '@/lib/utils';
 import { Plus, Search, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useToast } from '@/components/ui/toast';
 
 export default function EmployeesPage({ user }) {
+  const toast = useToast();
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -45,17 +47,22 @@ export default function EmployeesPage({ user }) {
 
   const handleAddDepartment = async (e) => {
     e.preventDefault();
+    const validationError = validators.departmentName(newDeptName);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
     try {
       await apiFetch('/api/departments', {
         method: 'POST',
-        body: JSON.stringify({ name: newDeptName }),
+        body: JSON.stringify({ name: newDeptName.trim() }),
       });
       setIsAddDeptDialogOpen(false);
       setNewDeptName('');
       loadDepartments();
-      alert('Department added successfully!');
+      toast.success('Department added successfully!');
     } catch (error) {
-      alert('Failed to add department: ' + error.message);
+      toast.error('Failed to add department: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -81,16 +88,43 @@ export default function EmployeesPage({ user }) {
 
   const handleAdd = async (e) => {
     e.preventDefault();
+    
+    // Validate inputs
+    const nameError = validators.employeeName(formData.name);
+    if (nameError) {
+      toast.error(nameError);
+      return;
+    }
+    const salaryError = validators.salary(formData.salary);
+    if (salaryError) {
+      toast.error(salaryError);
+      return;
+    }
+    if (!formData.department) {
+      toast.error('Please select a department');
+      return;
+    }
+    if (!formData.position || formData.position.trim().length === 0) {
+      toast.error('Position is required');
+      return;
+    }
+
     try {
       await apiFetch('/api/employees', {
         method: 'POST',
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          department: formData.department,
+          position: formData.position.trim(),
+          salary: parseFloat(formData.salary),
+        }),
       });
       setIsAddDialogOpen(false);
       resetForm();
       loadEmployees();
+      toast.success('Employee added successfully!');
     } catch (error) {
-      alert('Failed to add employee: ' + error.message);
+      toast.error('Failed to add employee: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -104,8 +138,9 @@ export default function EmployeesPage({ user }) {
       setIsEditDialogOpen(false);
       resetForm();
       loadEmployees();
+      toast.success('Employee updated successfully!');
     } catch (error) {
-      alert('Failed to update employee: ' + error.message);
+      toast.error('Failed to update employee: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -117,8 +152,9 @@ export default function EmployeesPage({ user }) {
       setIsDeleteDialogOpen(false);
       setSelectedEmployee(null);
       loadEmployees();
+      toast.success('Employee deleted successfully!');
     } catch (error) {
-      alert('Failed to delete employee: ' + error.message);
+      toast.error('Failed to delete employee: ' + (error.message || 'Unknown error'));
     }
   };
 

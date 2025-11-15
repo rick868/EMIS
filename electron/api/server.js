@@ -202,12 +202,31 @@ app.post('/api/employees', authenticateToken, authorize('ADMIN'), async (req, re
   try {
     const { name, department, position, salary } = req.body;
 
-    if (!name || !department || !position || salary === undefined) {
-      return res.status(400).json({ error: 'All fields are required' });
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Employee name is required' });
+    }
+    if (!department || typeof department !== 'string' || department.trim().length === 0) {
+      return res.status(400).json({ error: 'Department is required' });
+    }
+    if (!position || typeof position !== 'string' || position.trim().length === 0) {
+      return res.status(400).json({ error: 'Position is required' });
+    }
+    if (salary === undefined || salary === null) {
+      return res.status(400).json({ error: 'Salary is required' });
+    }
+
+    const numSalary = parseFloat(salary);
+    if (isNaN(numSalary) || numSalary < 0) {
+      return res.status(400).json({ error: 'Salary must be a valid positive number' });
     }
 
     const employee = await prisma.employee.create({
-      data: { name, department, position, salary: parseFloat(salary) },
+      data: {
+        name: name.trim(),
+        department: department.trim(),
+        position: position.trim(),
+        salary: numSalary,
+      },
     });
 
     await prisma.log.create({
@@ -471,14 +490,22 @@ app.post('/api/departments', authenticateToken, authorize('ADMIN', 'HR'), async 
   try {
     const { name, description } = req.body;
 
-    if (!name) {
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ error: 'Department name is required' });
+    }
+
+    const trimmedName = name.trim();
+    if (trimmedName.length < 2) {
+      return res.status(400).json({ error: 'Department name must be at least 2 characters' });
+    }
+    if (trimmedName.length > 100) {
+      return res.status(400).json({ error: 'Department name must be less than 100 characters' });
     }
 
     const department = await prisma.department.create({
       data: {
-        name,
-        description: description || null,
+        name: trimmedName,
+        description: description ? description.trim() : null,
       },
     });
 
@@ -590,14 +617,22 @@ app.post('/api/feedback-categories', authenticateToken, authorize('ADMIN', 'HR')
   try {
     const { name, description } = req.body;
 
-    if (!name) {
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ error: 'Category name is required' });
+    }
+
+    const trimmedName = name.trim();
+    if (trimmedName.length < 2) {
+      return res.status(400).json({ error: 'Category name must be at least 2 characters' });
+    }
+    if (trimmedName.length > 100) {
+      return res.status(400).json({ error: 'Category name must be less than 100 characters' });
     }
 
     const category = await prisma.feedbackCategory.create({
       data: {
-        name,
-        description: description || null,
+        name: trimmedName,
+        description: description ? description.trim() : null,
       },
     });
 

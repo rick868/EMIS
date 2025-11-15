@@ -6,11 +6,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { apiFetch, formatDateTime } from '@/lib/utils';
+import { apiFetch, formatDateTime, validators } from '@/lib/utils';
 import { Plus, MessageSquare, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/toast';
 
 export default function FeedbackPage({ user }) {
+  const toast = useToast();
   const [feedback, setFeedback] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,17 +52,22 @@ export default function FeedbackPage({ user }) {
 
   const handleAddCategory = async (e) => {
     e.preventDefault();
+    const validationError = validators.categoryName(newCategoryName);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
     try {
       await apiFetch('/api/feedback-categories', {
         method: 'POST',
-        body: JSON.stringify({ name: newCategoryName }),
+        body: JSON.stringify({ name: newCategoryName.trim() }),
       });
       setIsAddCategoryDialogOpen(false);
       setNewCategoryName('');
       loadCategories();
-      alert('Feedback category added successfully!');
+      toast.success('Feedback category added successfully!');
     } catch (error) {
-      alert('Failed to add category: ' + error.message);
+      toast.error('Failed to add category: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -100,9 +107,9 @@ export default function FeedbackPage({ user }) {
       if (canViewAllFeedback) {
         loadFeedback();
       }
-      alert('Feedback submitted successfully!');
+      toast.success('Feedback submitted successfully!');
     } catch (error) {
-      alert('Failed to submit feedback: ' + error.message);
+      toast.error('Failed to submit feedback: ' + (error.message || 'Unknown error'));
     }
   };
 

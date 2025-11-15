@@ -96,3 +96,89 @@ export const formatDateTime = (date) => {
     minute: '2-digit',
   });
 };
+
+// Validation helpers
+export const validators = {
+  departmentName: (name) => {
+    if (!name || name.trim().length === 0) {
+      return 'Department name is required';
+    }
+    if (name.length < 2) {
+      return 'Department name must be at least 2 characters';
+    }
+    if (name.length > 100) {
+      return 'Department name must be less than 100 characters';
+    }
+    if (!/^[a-zA-Z0-9\s\-_&]+$/.test(name)) {
+      return 'Department name can only contain letters, numbers, spaces, hyphens, underscores, and ampersands';
+    }
+    return null;
+  },
+
+  categoryName: (name) => {
+    if (!name || name.trim().length === 0) {
+      return 'Category name is required';
+    }
+    if (name.length < 2) {
+      return 'Category name must be at least 2 characters';
+    }
+    if (name.length > 100) {
+      return 'Category name must be less than 100 characters';
+    }
+    if (!/^[a-zA-Z0-9\s\-_&]+$/.test(name)) {
+      return 'Category name can only contain letters, numbers, spaces, hyphens, underscores, and ampersands';
+    }
+    return null;
+  },
+
+  employeeName: (name) => {
+    if (!name || name.trim().length === 0) {
+      return 'Employee name is required';
+    }
+    if (name.length < 2) {
+      return 'Employee name must be at least 2 characters';
+    }
+    if (name.length > 100) {
+      return 'Employee name must be less than 100 characters';
+    }
+    return null;
+  },
+
+  email: (email) => {
+    if (!email || email.trim().length === 0) {
+      return 'Email is required';
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return 'Please enter a valid email address';
+    }
+    return null;
+  },
+
+  password: (password) => {
+    if (!password || password.length === 0) {
+      return 'Password is required';
+    }
+    if (password.length < 6) {
+      return 'Password must be at least 6 characters';
+    }
+    return null;
+  },
+
+  salary: (salary) => {
+    if (salary === undefined || salary === null || salary === '') {
+      return 'Salary is required';
+    }
+    const numSalary = parseFloat(salary);
+    if (isNaN(numSalary)) {
+      return 'Salary must be a valid number';
+    }
+    if (numSalary < 0) {
+      return 'Salary cannot be negative';
+    }
+    if (numSalary > 10000000) {
+      return 'Salary cannot exceed $10,000,000';
+    }
+    return null;
+  },
+};

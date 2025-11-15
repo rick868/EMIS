@@ -9,8 +9,10 @@ import { Label } from '@/components/ui/label';
 import { apiFetch, formatDateTime } from '@/lib/utils';
 import { Plus, Shield, Activity, User, Building2, Tag, Edit, Trash2 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/components/ui/toast';
 
 export default function SettingsPage({ user }) {
+  const toast = useToast();
   const [users, setUsers] = useState([]);
   const [logs, setLogs] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -80,8 +82,9 @@ export default function SettingsPage({ user }) {
       resetForm();
       loadUsers();
       loadLogs();
+      toast.success('User created successfully!');
     } catch (error) {
-      alert('Failed to create user: ' + error.message);
+      toast.error('Failed to create user: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -114,8 +117,9 @@ export default function SettingsPage({ user }) {
       resetDeptForm();
       loadDepartments();
       loadLogs();
+      toast.success('Department created successfully!');
     } catch (error) {
-      alert('Failed to create department: ' + error.message);
+      toast.error('Failed to create department: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -131,8 +135,9 @@ export default function SettingsPage({ user }) {
       resetDeptForm();
       loadDepartments();
       loadLogs();
+      toast.success('Department updated successfully!');
     } catch (error) {
-      alert('Failed to update department: ' + error.message);
+      toast.error('Failed to update department: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -146,8 +151,9 @@ export default function SettingsPage({ user }) {
       });
       loadDepartments();
       loadLogs();
+      toast.success('Department deleted successfully!');
     } catch (error) {
-      alert('Failed to delete department: ' + error.message);
+      toast.error('Failed to delete department: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -162,8 +168,9 @@ export default function SettingsPage({ user }) {
       resetCatForm();
       loadCategories();
       loadLogs();
+      toast.success('Feedback category created successfully!');
     } catch (error) {
-      alert('Failed to create category: ' + error.message);
+      toast.error('Failed to create category: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -179,8 +186,9 @@ export default function SettingsPage({ user }) {
       resetCatForm();
       loadCategories();
       loadLogs();
+      toast.success('Feedback category updated successfully!');
     } catch (error) {
-      alert('Failed to update category: ' + error.message);
+      toast.error('Failed to update category: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -194,8 +202,9 @@ export default function SettingsPage({ user }) {
       });
       loadCategories();
       loadLogs();
+      toast.success('Feedback category deleted successfully!');
     } catch (error) {
-      alert('Failed to delete category: ' + error.message);
+      toast.error('Failed to delete category: ' + (error.message || 'Unknown error'));
     }
   };
 
