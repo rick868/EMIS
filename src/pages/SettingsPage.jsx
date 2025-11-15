@@ -6,10 +6,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { apiFetch, formatDateTime } from '@/lib/utils';
+import { apiFetch, formatDateTime, validators } from '@/lib/utils';
 import { Plus, Shield, Activity, User, Building2, Tag, Edit, Trash2 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function SettingsPage({ user }) {
   const toast = useToast();
@@ -25,6 +35,11 @@ export default function SettingsPage({ user }) {
   const [isEditCatDialogOpen, setIsEditCatDialogOpen] = useState(false);
   const [selectedDept, setSelectedDept] = useState(null);
   const [selectedCat, setSelectedCat] = useState(null);
+  const [isDeleteDeptDialogOpen, setIsDeleteDeptDialogOpen] = useState(false);
+  const [isDeleteCatDialogOpen, setIsDeleteCatDialogOpen] = useState(false);
+  const [deletingDeptId, setDeletingDeptId] = useState(null);
+  const [deletingCatId, setDeletingCatId] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -73,10 +88,36 @@ export default function SettingsPage({ user }) {
 
   const handleAddUser = async (e) => {
     e.preventDefault();
+    
+    // Validate inputs
+    const emailError = validators.email(formData.email);
+    if (emailError) {
+      toast.error(emailError);
+      return;
+    }
+    const passwordError = validators.password(formData.password);
+    if (passwordError) {
+      toast.error(passwordError);
+      return;
+    }
+    if (!formData.username || formData.username.trim().length === 0) {
+      toast.error('Username is required');
+      return;
+    }
+    if (formData.username.length < 3) {
+      toast.error('Username must be at least 3 characters');
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       await apiFetch('/api/users', {
         method: 'POST',
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          username: formData.username.trim(),
+          email: formData.email.trim(),
+        }),
       });
       setIsAddUserDialogOpen(false);
       resetForm();
@@ -85,6 +126,8 @@ export default function SettingsPage({ user }) {
       toast.success('User created successfully!');
     } catch (error) {
       toast.error('Failed to create user: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -108,10 +151,19 @@ export default function SettingsPage({ user }) {
 
   const handleAddDepartment = async (e) => {
     e.preventDefault();
+    const validationError = validators.departmentName(deptFormData.name);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+    setIsSubmitting(true);
     try {
       await apiFetch('/api/departments', {
         method: 'POST',
-        body: JSON.stringify(deptFormData),
+        body: JSON.stringify({
+          name: deptFormData.name.trim(),
+          description: deptFormData.description ? deptFormData.description.trim() : null,
+        }),
       });
       setIsAddDeptDialogOpen(false);
       resetDeptForm();
@@ -120,15 +172,26 @@ export default function SettingsPage({ user }) {
       toast.success('Department created successfully!');
     } catch (error) {
       toast.error('Failed to create department: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleEditDepartment = async (e) => {
     e.preventDefault();
+    const validationError = validators.departmentName(deptFormData.name);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+    setIsSubmitting(true);
     try {
       await apiFetch(`/api/departments/${selectedDept.id}`, {
         method: 'PUT',
-        body: JSON.stringify(deptFormData),
+        body: JSON.stringify({
+          name: deptFormData.name.trim(),
+          description: deptFormData.description ? deptFormData.description.trim() : null,
+        }),
       });
       setIsEditDeptDialogOpen(false);
       setSelectedDept(null);
@@ -138,31 +201,49 @@ export default function SettingsPage({ user }) {
       toast.success('Department updated successfully!');
     } catch (error) {
       toast.error('Failed to update department: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleDeleteDepartment = async (id) => {
-    if (!confirm('Are you sure you want to delete this department?')) {
-      return;
-    }
+  const openDeleteDeptDialog = (id) => {
+    setDeletingDeptId(id);
+    setIsDeleteDeptDialogOpen(true);
+  };
+
+  const handleDeleteDepartment = async () => {
+    setIsSubmitting(true);
     try {
-      await apiFetch(`/api/departments/${id}`, {
+      await apiFetch(`/api/departments/${deletingDeptId}`, {
         method: 'DELETE',
       });
+      setIsDeleteDeptDialogOpen(false);
+      setDeletingDeptId(null);
       loadDepartments();
       loadLogs();
       toast.success('Department deleted successfully!');
     } catch (error) {
       toast.error('Failed to delete department: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleAddCategory = async (e) => {
     e.preventDefault();
+    const validationError = validators.categoryName(catFormData.name);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+    setIsSubmitting(true);
     try {
       await apiFetch('/api/feedback-categories', {
         method: 'POST',
-        body: JSON.stringify(catFormData),
+        body: JSON.stringify({
+          name: catFormData.name.trim(),
+          description: catFormData.description ? catFormData.description.trim() : null,
+        }),
       });
       setIsAddCatDialogOpen(false);
       resetCatForm();
@@ -171,15 +252,26 @@ export default function SettingsPage({ user }) {
       toast.success('Feedback category created successfully!');
     } catch (error) {
       toast.error('Failed to create category: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleEditCategory = async (e) => {
     e.preventDefault();
+    const validationError = validators.categoryName(catFormData.name);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+    setIsSubmitting(true);
     try {
       await apiFetch(`/api/feedback-categories/${selectedCat.id}`, {
         method: 'PUT',
-        body: JSON.stringify(catFormData),
+        body: JSON.stringify({
+          name: catFormData.name.trim(),
+          description: catFormData.description ? catFormData.description.trim() : null,
+        }),
       });
       setIsEditCatDialogOpen(false);
       setSelectedCat(null);
@@ -189,22 +281,31 @@ export default function SettingsPage({ user }) {
       toast.success('Feedback category updated successfully!');
     } catch (error) {
       toast.error('Failed to update category: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleDeleteCategory = async (id) => {
-    if (!confirm('Are you sure you want to delete this category?')) {
-      return;
-    }
+  const openDeleteCatDialog = (id) => {
+    setDeletingCatId(id);
+    setIsDeleteCatDialogOpen(true);
+  };
+
+  const handleDeleteCategory = async () => {
+    setIsSubmitting(true);
     try {
-      await apiFetch(`/api/feedback-categories/${id}`, {
+      await apiFetch(`/api/feedback-categories/${deletingCatId}`, {
         method: 'DELETE',
       });
+      setIsDeleteCatDialogOpen(false);
+      setDeletingCatId(null);
       loadCategories();
       loadLogs();
       toast.success('Feedback category deleted successfully!');
     } catch (error) {
       toast.error('Failed to delete category: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -429,20 +530,20 @@ export default function SettingsPage({ user }) {
                                   >
                                     <Edit className="w-4 h-4" />
                                   </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDeleteDepartment(dept.id)}
-                                  >
-                                    <Trash2 className="w-4 h-4 text-destructive" />
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openDeleteDeptDialog(dept.id)}
+                                >
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
 
                     {/* Mobile Card View */}
                     <div className="md:hidden space-y-4">
@@ -462,7 +563,7 @@ export default function SettingsPage({ user }) {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => handleDeleteDepartment(dept.id)}
+                                  onClick={() => openDeleteDeptDialog(dept.id)}
                                 >
                                   <Trash2 className="w-4 h-4 text-destructive" />
                                 </Button>
@@ -534,20 +635,20 @@ export default function SettingsPage({ user }) {
                                   >
                                     <Edit className="w-4 h-4" />
                                   </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDeleteCategory(cat.id)}
-                                  >
-                                    <Trash2 className="w-4 h-4 text-destructive" />
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openDeleteCatDialog(cat.id)}
+                                >
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
 
                     {/* Mobile Card View */}
                     <div className="md:hidden space-y-4">
@@ -567,7 +668,7 @@ export default function SettingsPage({ user }) {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => handleDeleteCategory(cat.id)}
+                                  onClick={() => openDeleteCatDialog(cat.id)}
                                 >
                                   <Trash2 className="w-4 h-4 text-destructive" />
                                 </Button>
@@ -761,7 +862,9 @@ export default function SettingsPage({ user }) {
               >
                 Cancel
               </Button>
-              <Button type="submit">Create User</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Creating...' : 'Create User'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -802,7 +905,9 @@ export default function SettingsPage({ user }) {
               }}>
                 Cancel
               </Button>
-              <Button type="submit">Create Department</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Creating...' : 'Create Department'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -844,7 +949,9 @@ export default function SettingsPage({ user }) {
               }}>
                 Cancel
               </Button>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -885,7 +992,9 @@ export default function SettingsPage({ user }) {
               }}>
                 Cancel
               </Button>
-              <Button type="submit">Create Category</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Creating...' : 'Create Category'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -927,11 +1036,67 @@ export default function SettingsPage({ user }) {
               }}>
                 Cancel
               </Button>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Department Confirmation Dialog */}
+      <AlertDialog open={isDeleteDeptDialogOpen} onOpenChange={setIsDeleteDeptDialogOpen}>
+        <AlertDialogContent className="max-w-[95vw] md:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Department</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this department? This action cannot be undone.
+              {departments.find(d => d.id === deletingDeptId) && (
+                <span className="block mt-2 font-semibold">
+                  Department: {departments.find(d => d.id === deletingDeptId).name}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteDepartment}
+              disabled={isSubmitting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isSubmitting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Category Confirmation Dialog */}
+      <AlertDialog open={isDeleteCatDialogOpen} onOpenChange={setIsDeleteCatDialogOpen}>
+        <AlertDialogContent className="max-w-[95vw] md:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Feedback Category</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this category? This action cannot be undone.
+              {categories.find(c => c.id === deletingCatId) && (
+                <span className="block mt-2 font-semibold">
+                  Category: {categories.find(c => c.id === deletingCatId).name}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCategory}
+              disabled={isSubmitting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isSubmitting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

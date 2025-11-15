@@ -21,6 +21,7 @@ export default function FeedbackPage({ user }) {
   const [categories, setCategories] = useState([]);
   const [isAddCategoryDialogOpen, setIsAddCategoryDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     employeeId: user.employee?.id || '',
     category: '',
@@ -57,6 +58,7 @@ export default function FeedbackPage({ user }) {
       toast.error(validationError);
       return;
     }
+    setIsSubmitting(true);
     try {
       await apiFetch('/api/feedback-categories', {
         method: 'POST',
@@ -68,6 +70,8 @@ export default function FeedbackPage({ user }) {
       toast.success('Feedback category added successfully!');
     } catch (error) {
       toast.error('Failed to add category: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -97,6 +101,7 @@ export default function FeedbackPage({ user }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       await apiFetch('/api/feedback', {
         method: 'POST',
@@ -110,6 +115,8 @@ export default function FeedbackPage({ user }) {
       toast.success('Feedback submitted successfully!');
     } catch (error) {
       toast.error('Failed to submit feedback: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -354,7 +361,9 @@ export default function FeedbackPage({ user }) {
               }}>
                 Cancel
               </Button>
-              <Button type="submit">Submit Feedback</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -389,7 +398,9 @@ export default function FeedbackPage({ user }) {
               }}>
                 Cancel
               </Button>
-              <Button type="submit">Add Category</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Adding...' : 'Add Category'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

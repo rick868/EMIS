@@ -24,6 +24,7 @@ export default function EmployeesPage({ user }) {
   const [departments, setDepartments] = useState([]);
   const [isAddDeptDialogOpen, setIsAddDeptDialogOpen] = useState(false);
   const [newDeptName, setNewDeptName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     department: '',
@@ -52,6 +53,7 @@ export default function EmployeesPage({ user }) {
       toast.error(validationError);
       return;
     }
+    setIsSubmitting(true);
     try {
       await apiFetch('/api/departments', {
         method: 'POST',
@@ -63,6 +65,8 @@ export default function EmployeesPage({ user }) {
       toast.success('Department added successfully!');
     } catch (error) {
       toast.error('Failed to add department: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -109,6 +113,7 @@ export default function EmployeesPage({ user }) {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       await apiFetch('/api/employees', {
         method: 'POST',
@@ -125,15 +130,44 @@ export default function EmployeesPage({ user }) {
       toast.success('Employee added successfully!');
     } catch (error) {
       toast.error('Failed to add employee: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleEdit = async (e) => {
     e.preventDefault();
+    
+    // Validate inputs
+    const nameError = validators.employeeName(formData.name);
+    if (nameError) {
+      toast.error(nameError);
+      return;
+    }
+    const salaryError = validators.salary(formData.salary);
+    if (salaryError) {
+      toast.error(salaryError);
+      return;
+    }
+    if (!formData.department) {
+      toast.error('Please select a department');
+      return;
+    }
+    if (!formData.position || formData.position.trim().length === 0) {
+      toast.error('Position is required');
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       await apiFetch(`/api/employees/${selectedEmployee.id}`, {
         method: 'PUT',
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          department: formData.department,
+          position: formData.position.trim(),
+          salary: parseFloat(formData.salary),
+        }),
       });
       setIsEditDialogOpen(false);
       resetForm();
@@ -141,10 +175,13 @@ export default function EmployeesPage({ user }) {
       toast.success('Employee updated successfully!');
     } catch (error) {
       toast.error('Failed to update employee: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleDelete = async () => {
+    setIsSubmitting(true);
     try {
       await apiFetch(`/api/employees/${selectedEmployee.id}`, {
         method: 'DELETE',
@@ -155,6 +192,8 @@ export default function EmployeesPage({ user }) {
       toast.success('Employee deleted successfully!');
     } catch (error) {
       toast.error('Failed to delete employee: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -467,7 +506,9 @@ export default function EmployeesPage({ user }) {
               }}>
                 Cancel
               </Button>
-              <Button type="submit">Add Employee</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Adding...' : 'Add Employee'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -553,7 +594,9 @@ export default function EmployeesPage({ user }) {
               }}>
                 Cancel
               </Button>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -575,8 +618,8 @@ export default function EmployeesPage({ user }) {
             }}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Delete
+            <Button variant="destructive" onClick={handleDelete} disabled={isSubmitting}>
+              {isSubmitting ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -611,7 +654,9 @@ export default function EmployeesPage({ user }) {
               }}>
                 Cancel
               </Button>
-              <Button type="submit">Add Department</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Adding...' : 'Add Department'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
