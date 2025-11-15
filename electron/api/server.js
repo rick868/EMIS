@@ -451,6 +451,244 @@ app.get('/api/logs', authenticateToken, authorize('ADMIN'), async (req, res) => 
   }
 });
 
+// ==================== DEPARTMENT ROUTES ====================
+
+// GET /api/departments - Get all departments
+app.get('/api/departments', authenticateToken, async (req, res) => {
+  try {
+    const departments = await prisma.department.findMany({
+      orderBy: { name: 'asc' },
+    });
+    res.json(departments);
+  } catch (error) {
+    console.error('Get departments error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/departments - Create department (Admin/HR only)
+app.post('/api/departments', authenticateToken, authorize('ADMIN', 'HR'), async (req, res) => {
+  try {
+    const { name, description } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: 'Department name is required' });
+    }
+
+    const department = await prisma.department.create({
+      data: {
+        name,
+        description: description || null,
+      },
+    });
+
+    await prisma.log.create({
+      data: {
+        action: 'DEPARTMENT_CREATED',
+        userId: req.user.id,
+        details: `Created department: ${name}`,
+      },
+    });
+
+    res.status(201).json(department);
+  } catch (error) {
+    console.error('Create department error:', error);
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'Department name already exists' });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/departments/:id - Update department (Admin/HR only)
+app.put('/api/departments/:id', authenticateToken, authorize('ADMIN', 'HR'), async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    const id = parseInt(req.params.id);
+
+    const department = await prisma.department.update({
+      where: { id },
+      data: {
+        ...(name && { name }),
+        ...(description !== undefined && { description }),
+      },
+    });
+
+    await prisma.log.create({
+      data: {
+        action: 'DEPARTMENT_UPDATED',
+        userId: req.user.id,
+        details: `Updated department: ${department.name}`,
+      },
+    });
+
+    res.json(department);
+  } catch (error) {
+    console.error('Update department error:', error);
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'Department name already exists' });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/departments/:id - Delete department (Admin only)
+app.delete('/api/departments/:id', authenticateToken, authorize('ADMIN'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    
+    const department = await prisma.department.findUnique({ where: { id } });
+    if (!department) {
+      return res.status(404).json({ error: 'Department not found' });
+    }
+
+    // Check if department has employees
+    const employeeCount = await prisma.employee.count({
+      where: { departmentId: id },
+    });
+
+    if (employeeCount > 0) {
+      return res.status(400).json({ 
+        error: `Cannot delete department. It has ${employeeCount} employee(s) assigned.` 
+      });
+    }
+
+    await prisma.department.delete({ where: { id } });
+
+    await prisma.log.create({
+      data: {
+        action: 'DEPARTMENT_DELETED',
+        userId: req.user.id,
+        details: `Deleted department: ${department.name}`,
+      },
+    });
+
+    res.json({ message: 'Department deleted successfully' });
+  } catch (error) {
+    console.error('Delete department error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==================== FEEDBACK CATEGORY ROUTES ====================
+
+// GET /api/feedback-categories - Get all feedback categories
+app.get('/api/feedback-categories', authenticateToken, async (req, res) => {
+  try {
+    const categories = await prisma.feedbackCategory.findMany({
+      orderBy: { name: 'asc' },
+    });
+    res.json(categories);
+  } catch (error) {
+    console.error('Get feedback categories error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/feedback-categories - Create feedback category (Admin/HR only)
+app.post('/api/feedback-categories', authenticateToken, authorize('ADMIN', 'HR'), async (req, res) => {
+  try {
+    const { name, description } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: 'Category name is required' });
+    }
+
+    const category = await prisma.feedbackCategory.create({
+      data: {
+        name,
+        description: description || null,
+      },
+    });
+
+    await prisma.log.create({
+      data: {
+        action: 'FEEDBACK_CATEGORY_CREATED',
+        userId: req.user.id,
+        details: `Created feedback category: ${name}`,
+      },
+    });
+
+    res.status(201).json(category);
+  } catch (error) {
+    console.error('Create feedback category error:', error);
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'Category name already exists' });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/feedback-categories/:id - Update feedback category (Admin/HR only)
+app.put('/api/feedback-categories/:id', authenticateToken, authorize('ADMIN', 'HR'), async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    const id = parseInt(req.params.id);
+
+    const category = await prisma.feedbackCategory.update({
+      where: { id },
+      data: {
+        ...(name && { name }),
+        ...(description !== undefined && { description }),
+      },
+    });
+
+    await prisma.log.create({
+      data: {
+        action: 'FEEDBACK_CATEGORY_UPDATED',
+        userId: req.user.id,
+        details: `Updated feedback category: ${category.name}`,
+      },
+    });
+
+    res.json(category);
+  } catch (error) {
+    console.error('Update feedback category error:', error);
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'Category name already exists' });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/feedback-categories/:id - Delete feedback category (Admin only)
+app.delete('/api/feedback-categories/:id', authenticateToken, authorize('ADMIN'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    
+    const category = await prisma.feedbackCategory.findUnique({ where: { id } });
+    if (!category) {
+      return res.status(404).json({ error: 'Feedback category not found' });
+    }
+
+    // Check if category has feedback
+    const feedbackCount = await prisma.feedback.count({
+      where: { categoryId: id },
+    });
+
+    if (feedbackCount > 0) {
+      return res.status(400).json({ 
+        error: `Cannot delete category. It has ${feedbackCount} feedback submission(s).` 
+      });
+    }
+
+    await prisma.feedbackCategory.delete({ where: { id } });
+
+    await prisma.log.create({
+      data: {
+        action: 'FEEDBACK_CATEGORY_DELETED',
+        userId: req.user.id,
+        details: `Deleted feedback category: ${category.name}`,
+      },
+    });
+
+    res.json({ message: 'Feedback category deleted successfully' });
+  } catch (error) {
+    console.error('Delete feedback category error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ==================== USER MANAGEMENT ROUTES ====================
 
 // GET /api/users - Get all users (Admin only)

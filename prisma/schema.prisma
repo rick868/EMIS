@@ -21,27 +21,51 @@ model User {
   @@map("users")
 }
 
+model Department {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  description String?
+  createdAt   DateTime   @default(now()) @map("created_at")
+  employees   Employee[]
+
+  @@map("departments")
+}
+
 model Employee {
-  id         Int        @id @default(autoincrement())
-  name       String
-  department String
-  position   String
-  salary     Float
-  dateJoined DateTime   @default(now()) @map("date_joined")
-  userId     Int?       @unique @map("user_id")
-  user       User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  feedback   Feedback[]
+  id           Int        @id @default(autoincrement())
+  name         String
+  department   String
+  departmentId Int?       @map("department_id")
+  position     String
+  salary       Float
+  dateJoined   DateTime   @default(now()) @map("date_joined")
+  userId       Int?       @unique @map("user_id")
+  user         User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  departmentRef Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  feedback     Feedback[]
 
   @@map("employees")
+}
+
+model FeedbackCategory {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  feedback    Feedback[]
+
+  @@map("feedback_categories")
 }
 
 model Feedback {
   id            Int      @id @default(autoincrement())
   employeeId    Int      @map("employee_id")
   category      String
+  categoryId    Int?     @map("category_id")
   message       String
   dateSubmitted DateTime @default(now()) @map("date_submitted")
   employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  categoryRef   FeedbackCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@map("feedback")
 }

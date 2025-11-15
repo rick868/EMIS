@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiFetch, formatDateTime } from '@/lib/utils';
 import { Plus, MessageSquare, Filter } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 export default function FeedbackPage({ user }) {
   const [feedback, setFeedback] = useState([]);
@@ -15,31 +16,53 @@ export default function FeedbackPage({ user }) {
   const [loading, setLoading] = useState(true);
   const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
   const [category, setCategory] = useState('all');
+  const [categories, setCategories] = useState([]);
+  const [isAddCategoryDialogOpen, setIsAddCategoryDialogOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
   const [formData, setFormData] = useState({
     employeeId: user.employee?.id || '',
-    category: 'Work Environment',
+    category: '',
     message: '',
   });
-
-  const categories = [
-    'All',
-    'Work Environment',
-    'Team Collaboration',
-    'Technology',
-    'Training',
-    'Benefits',
-    'Management',
-    'Other',
-  ];
 
   const canViewAllFeedback = user.role === 'ADMIN' || user.role === 'HR';
 
   useEffect(() => {
+    loadCategories();
     if (canViewAllFeedback) {
       loadFeedback();
       loadEmployees();
     }
   }, [category]);
+
+  const loadCategories = async () => {
+    try {
+      const data = await apiFetch('/api/feedback-categories');
+      setCategories(data);
+      // Set default category if available
+      if (data.length > 0 && !formData.category) {
+        setFormData(prev => ({ ...prev, category: data[0].name }));
+      }
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+    }
+  };
+
+  const handleAddCategory = async (e) => {
+    e.preventDefault();
+    try {
+      await apiFetch('/api/feedback-categories', {
+        method: 'POST',
+        body: JSON.stringify({ name: newCategoryName }),
+      });
+      setIsAddCategoryDialogOpen(false);
+      setNewCategoryName('');
+      loadCategories();
+      alert('Feedback category added successfully!');
+    } catch (error) {
+      alert('Failed to add category: ' + error.message);
+    }
+  };
 
   const loadFeedback = async () => {
     try {
@@ -86,7 +109,7 @@ export default function FeedbackPage({ user }) {
   const resetForm = () => {
     setFormData({
       employeeId: user.employee?.id || '',
-      category: 'Work Environment',
+      category: categories.length > 0 ? categories[0].name : '',
       message: '',
     });
   };
@@ -130,9 +153,10 @@ export default function FeedbackPage({ user }) {
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="all">All</SelectItem>
                 {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat.toLowerCase().replace(' ', '-')}>
-                    {cat}
+                  <SelectItem key={cat.id} value={cat.name}>
+                    {cat.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -271,18 +295,33 @@ export default function FeedbackPage({ user }) {
               )}
               
               <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="category">Category</Label>
+                  {canViewAllFeedback && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsAddCategoryDialogOpen(true)}
+                      className="text-xs"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Add New
+                    </Button>
+                  )}
+                </div>
                 <Select
                   value={formData.category}
                   onValueChange={(value) => setFormData({ ...formData, category: value })}
+                  required
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.filter(c => c !== 'All').map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.name}>
+                        {cat.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -309,6 +348,41 @@ export default function FeedbackPage({ user }) {
                 Cancel
               </Button>
               <Button type="submit">Submit Feedback</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Category Dialog */}
+      <Dialog open={isAddCategoryDialogOpen} onOpenChange={setIsAddCategoryDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Feedback Category</DialogTitle>
+            <DialogDescription>
+              Create a new category for feedback submissions
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddCategory}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="cat-name">Category Name</Label>
+                <Input
+                  id="cat-name"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="e.g., Work Environment, Technology"
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => {
+                setIsAddCategoryDialogOpen(false);
+                setNewCategoryName('');
+              }}>
+                Cancel
+              </Button>
+              <Button type="submit">Add Category</Button>
             </DialogFooter>
           </form>
         </DialogContent>

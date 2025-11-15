@@ -19,6 +19,9 @@ export default function EmployeesPage({ user }) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [departments, setDepartments] = useState([]);
+  const [isAddDeptDialogOpen, setIsAddDeptDialogOpen] = useState(false);
+  const [newDeptName, setNewDeptName] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     department: '',
@@ -26,11 +29,35 @@ export default function EmployeesPage({ user }) {
     salary: '',
   });
 
-  const departments = ['All', 'Engineering', 'Human Resources', 'Marketing', 'Sales', 'Finance', 'Management'];
-
   useEffect(() => {
     loadEmployees();
+    loadDepartments();
   }, [search, department, page]);
+
+  const loadDepartments = async () => {
+    try {
+      const data = await apiFetch('/api/departments');
+      setDepartments(data);
+    } catch (error) {
+      console.error('Failed to load departments:', error);
+    }
+  };
+
+  const handleAddDepartment = async (e) => {
+    e.preventDefault();
+    try {
+      await apiFetch('/api/departments', {
+        method: 'POST',
+        body: JSON.stringify({ name: newDeptName }),
+      });
+      setIsAddDeptDialogOpen(false);
+      setNewDeptName('');
+      loadDepartments();
+      alert('Department added successfully!');
+    } catch (error) {
+      alert('Failed to add department: ' + error.message);
+    }
+  };
 
   const loadEmployees = async () => {
     try {
@@ -162,9 +189,10 @@ export default function EmployeesPage({ user }) {
                 <SelectValue placeholder="Select department" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="all">All</SelectItem>
                 {departments.map((dept) => (
-                  <SelectItem key={dept} value={dept.toLowerCase().replace(' ', '-')}>
-                    {dept}
+                  <SelectItem key={dept.id} value={dept.name}>
+                    {dept.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -293,18 +321,33 @@ export default function EmployeesPage({ user }) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="department">Department</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="department">Department</Label>
+                  {isAdmin && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsAddDeptDialogOpen(true)}
+                      className="text-xs"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Add New
+                    </Button>
+                  )}
+                </div>
                 <Select
                   value={formData.department}
                   onValueChange={(value) => setFormData({ ...formData, department: value })}
+                  required
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
-                    {departments.filter(d => d !== 'All').map((dept) => (
-                      <SelectItem key={dept} value={dept}>
-                        {dept}
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.name}>
+                        {dept.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -364,18 +407,33 @@ export default function EmployeesPage({ user }) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-department">Department</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="edit-department">Department</Label>
+                  {isAdmin && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsAddDeptDialogOpen(true)}
+                      className="text-xs"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Add New
+                    </Button>
+                  )}
+                </div>
                 <Select
                   value={formData.department}
                   onValueChange={(value) => setFormData({ ...formData, department: value })}
+                  required
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {departments.filter(d => d !== 'All').map((dept) => (
-                      <SelectItem key={dept} value={dept}>
-                        {dept}
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.name}>
+                        {dept.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -434,6 +492,41 @@ export default function EmployeesPage({ user }) {
               Delete
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Department Dialog */}
+      <Dialog open={isAddDeptDialogOpen} onOpenChange={setIsAddDeptDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Department</DialogTitle>
+            <DialogDescription>
+              Create a new department for your organization
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddDepartment}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="dept-name">Department Name</Label>
+                <Input
+                  id="dept-name"
+                  value={newDeptName}
+                  onChange={(e) => setNewDeptName(e.target.value)}
+                  placeholder="e.g., Engineering, Marketing"
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => {
+                setIsAddDeptDialogOpen(false);
+                setNewDeptName('');
+              }}>
+                Cancel
+              </Button>
+              <Button type="submit">Add Department</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

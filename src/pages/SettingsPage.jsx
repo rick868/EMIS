@@ -7,18 +7,35 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { apiFetch, formatDateTime } from '@/lib/utils';
-import { Plus, Shield, Activity, User } from 'lucide-react';
+import { Plus, Shield, Activity, User, Building2, Tag, Edit, Trash2 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function SettingsPage({ user }) {
   const [users, setUsers] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
+  const [isAddDeptDialogOpen, setIsAddDeptDialogOpen] = useState(false);
+  const [isEditDeptDialogOpen, setIsEditDeptDialogOpen] = useState(false);
+  const [isAddCatDialogOpen, setIsAddCatDialogOpen] = useState(false);
+  const [isEditCatDialogOpen, setIsEditCatDialogOpen] = useState(false);
+  const [selectedDept, setSelectedDept] = useState(null);
+  const [selectedCat, setSelectedCat] = useState(null);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
     role: 'EMPLOYEE',
+  });
+  const [deptFormData, setDeptFormData] = useState({
+    name: '',
+    description: '',
+  });
+  const [catFormData, setCatFormData] = useState({
+    name: '',
+    description: '',
   });
 
   const isAdmin = user.role === 'ADMIN';
@@ -27,6 +44,8 @@ export default function SettingsPage({ user }) {
     if (isAdmin) {
       loadUsers();
       loadLogs();
+      loadDepartments();
+      loadCategories();
     }
   }, [isAdmin]);
 
@@ -66,12 +85,158 @@ export default function SettingsPage({ user }) {
     }
   };
 
+  const loadDepartments = async () => {
+    try {
+      const data = await apiFetch('/api/departments');
+      setDepartments(data);
+    } catch (error) {
+      console.error('Failed to load departments:', error);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const data = await apiFetch('/api/feedback-categories');
+      setCategories(data);
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+    }
+  };
+
+  const handleAddDepartment = async (e) => {
+    e.preventDefault();
+    try {
+      await apiFetch('/api/departments', {
+        method: 'POST',
+        body: JSON.stringify(deptFormData),
+      });
+      setIsAddDeptDialogOpen(false);
+      resetDeptForm();
+      loadDepartments();
+      loadLogs();
+    } catch (error) {
+      alert('Failed to create department: ' + error.message);
+    }
+  };
+
+  const handleEditDepartment = async (e) => {
+    e.preventDefault();
+    try {
+      await apiFetch(`/api/departments/${selectedDept.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(deptFormData),
+      });
+      setIsEditDeptDialogOpen(false);
+      setSelectedDept(null);
+      resetDeptForm();
+      loadDepartments();
+      loadLogs();
+    } catch (error) {
+      alert('Failed to update department: ' + error.message);
+    }
+  };
+
+  const handleDeleteDepartment = async (id) => {
+    if (!confirm('Are you sure you want to delete this department?')) {
+      return;
+    }
+    try {
+      await apiFetch(`/api/departments/${id}`, {
+        method: 'DELETE',
+      });
+      loadDepartments();
+      loadLogs();
+    } catch (error) {
+      alert('Failed to delete department: ' + error.message);
+    }
+  };
+
+  const handleAddCategory = async (e) => {
+    e.preventDefault();
+    try {
+      await apiFetch('/api/feedback-categories', {
+        method: 'POST',
+        body: JSON.stringify(catFormData),
+      });
+      setIsAddCatDialogOpen(false);
+      resetCatForm();
+      loadCategories();
+      loadLogs();
+    } catch (error) {
+      alert('Failed to create category: ' + error.message);
+    }
+  };
+
+  const handleEditCategory = async (e) => {
+    e.preventDefault();
+    try {
+      await apiFetch(`/api/feedback-categories/${selectedCat.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(catFormData),
+      });
+      setIsEditCatDialogOpen(false);
+      setSelectedCat(null);
+      resetCatForm();
+      loadCategories();
+      loadLogs();
+    } catch (error) {
+      alert('Failed to update category: ' + error.message);
+    }
+  };
+
+  const handleDeleteCategory = async (id) => {
+    if (!confirm('Are you sure you want to delete this category?')) {
+      return;
+    }
+    try {
+      await apiFetch(`/api/feedback-categories/${id}`, {
+        method: 'DELETE',
+      });
+      loadCategories();
+      loadLogs();
+    } catch (error) {
+      alert('Failed to delete category: ' + error.message);
+    }
+  };
+
+  const openEditDeptDialog = (dept) => {
+    setSelectedDept(dept);
+    setDeptFormData({
+      name: dept.name,
+      description: dept.description || '',
+    });
+    setIsEditDeptDialogOpen(true);
+  };
+
+  const openEditCatDialog = (cat) => {
+    setSelectedCat(cat);
+    setCatFormData({
+      name: cat.name,
+      description: cat.description || '',
+    });
+    setIsEditCatDialogOpen(true);
+  };
+
   const resetForm = () => {
     setFormData({
       username: '',
       email: '',
       password: '',
       role: 'EMPLOYEE',
+    });
+  };
+
+  const resetDeptForm = () => {
+    setDeptFormData({
+      name: '',
+      description: '',
+    });
+  };
+
+  const resetCatForm = () => {
+    setCatFormData({
+      name: '',
+      description: '',
     });
   };
 
@@ -110,6 +275,14 @@ export default function SettingsPage({ user }) {
           </TabsTrigger>
           {isAdmin && (
             <>
+              <TabsTrigger value="departments">
+                <Building2 className="w-4 h-4 mr-2" />
+                Departments
+              </TabsTrigger>
+              <TabsTrigger value="categories">
+                <Tag className="w-4 h-4 mr-2" />
+                Feedback Categories
+              </TabsTrigger>
               <TabsTrigger value="users">
                 <Shield className="w-4 h-4 mr-2" />
                 User Management
@@ -201,6 +374,132 @@ export default function SettingsPage({ user }) {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Departments Tab */}
+        {isAdmin && (
+          <TabsContent value="departments" className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Department Management</CardTitle>
+                  <CardDescription>Manage organizational departments</CardDescription>
+                </div>
+                <Button onClick={() => setIsAddDeptDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Department
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {departments.length === 0 ? (
+                  <p className="text-center py-8 text-muted-foreground">No departments found. Add your first department.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left p-4 font-semibold">Name</th>
+                          <th className="text-left p-4 font-semibold">Description</th>
+                          <th className="text-left p-4 font-semibold">Created</th>
+                          <th className="text-left p-4 font-semibold">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {departments.map((dept) => (
+                          <tr key={dept.id} className="border-b hover:bg-accent/50 transition-colors">
+                            <td className="p-4 font-medium">{dept.name}</td>
+                            <td className="p-4 text-muted-foreground">{dept.description || '-'}</td>
+                            <td className="p-4">{formatDateTime(dept.createdAt)}</td>
+                            <td className="p-4">
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openEditDeptDialog(dept)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteDepartment(dept.id)}
+                                >
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* Feedback Categories Tab */}
+        {isAdmin && (
+          <TabsContent value="categories" className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Feedback Category Management</CardTitle>
+                  <CardDescription>Manage feedback submission categories</CardDescription>
+                </div>
+                <Button onClick={() => setIsAddCatDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Category
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {categories.length === 0 ? (
+                  <p className="text-center py-8 text-muted-foreground">No categories found. Add your first category.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left p-4 font-semibold">Name</th>
+                          <th className="text-left p-4 font-semibold">Description</th>
+                          <th className="text-left p-4 font-semibold">Created</th>
+                          <th className="text-left p-4 font-semibold">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {categories.map((cat) => (
+                          <tr key={cat.id} className="border-b hover:bg-accent/50 transition-colors">
+                            <td className="p-4 font-medium">{cat.name}</td>
+                            <td className="p-4 text-muted-foreground">{cat.description || '-'}</td>
+                            <td className="p-4">{formatDateTime(cat.createdAt)}</td>
+                            <td className="p-4">
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openEditCatDialog(cat)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteCategory(cat.id)}
+                                >
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         {/* User Management Tab */}
         {isAdmin && (
@@ -370,6 +669,172 @@ export default function SettingsPage({ user }) {
                 Cancel
               </Button>
               <Button type="submit">Create User</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Department Dialog */}
+      <Dialog open={isAddDeptDialogOpen} onOpenChange={setIsAddDeptDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Department</DialogTitle>
+            <DialogDescription>Create a new organizational department</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddDepartment}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="dept-name">Department Name</Label>
+                <Input
+                  id="dept-name"
+                  value={deptFormData.name}
+                  onChange={(e) => setDeptFormData({ ...deptFormData, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dept-desc">Description (Optional)</Label>
+                <Textarea
+                  id="dept-desc"
+                  value={deptFormData.description}
+                  onChange={(e) => setDeptFormData({ ...deptFormData, description: e.target.value })}
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => {
+                setIsAddDeptDialogOpen(false);
+                resetDeptForm();
+              }}>
+                Cancel
+              </Button>
+              <Button type="submit">Create Department</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Department Dialog */}
+      <Dialog open={isEditDeptDialogOpen} onOpenChange={setIsEditDeptDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Department</DialogTitle>
+            <DialogDescription>Update department information</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditDepartment}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-dept-name">Department Name</Label>
+                <Input
+                  id="edit-dept-name"
+                  value={deptFormData.name}
+                  onChange={(e) => setDeptFormData({ ...deptFormData, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-dept-desc">Description (Optional)</Label>
+                <Textarea
+                  id="edit-dept-desc"
+                  value={deptFormData.description}
+                  onChange={(e) => setDeptFormData({ ...deptFormData, description: e.target.value })}
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => {
+                setIsEditDeptDialogOpen(false);
+                setSelectedDept(null);
+                resetDeptForm();
+              }}>
+                Cancel
+              </Button>
+              <Button type="submit">Save Changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Category Dialog */}
+      <Dialog open={isAddCatDialogOpen} onOpenChange={setIsAddCatDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Feedback Category</DialogTitle>
+            <DialogDescription>Create a new feedback category</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddCategory}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="cat-name">Category Name</Label>
+                <Input
+                  id="cat-name"
+                  value={catFormData.name}
+                  onChange={(e) => setCatFormData({ ...catFormData, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cat-desc">Description (Optional)</Label>
+                <Textarea
+                  id="cat-desc"
+                  value={catFormData.description}
+                  onChange={(e) => setCatFormData({ ...catFormData, description: e.target.value })}
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => {
+                setIsAddCatDialogOpen(false);
+                resetCatForm();
+              }}>
+                Cancel
+              </Button>
+              <Button type="submit">Create Category</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Category Dialog */}
+      <Dialog open={isEditCatDialogOpen} onOpenChange={setIsEditCatDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Feedback Category</DialogTitle>
+            <DialogDescription>Update category information</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditCategory}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-cat-name">Category Name</Label>
+                <Input
+                  id="edit-cat-name"
+                  value={catFormData.name}
+                  onChange={(e) => setCatFormData({ ...catFormData, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-cat-desc">Description (Optional)</Label>
+                <Textarea
+                  id="edit-cat-desc"
+                  value={catFormData.description}
+                  onChange={(e) => setCatFormData({ ...catFormData, description: e.target.value })}
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => {
+                setIsEditCatDialogOpen(false);
+                setSelectedCat(null);
+                resetCatForm();
+              }}>
+                Cancel
+              </Button>
+              <Button type="submit">Save Changes</Button>
             </DialogFooter>
           </form>
         </DialogContent>
