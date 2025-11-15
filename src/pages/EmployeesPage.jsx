@@ -6,8 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { apiFetch, formatCurrency, formatDate, validators, useDebounce } from '@/lib/utils';
-import { Plus, Search, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, ChevronLeft, ChevronRight, Download, FileText } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
+import { exportEmployeesToCSV, exportEmployeesToPDF } from '@/lib/export';
+import { useKeyboardShortcuts } from '@/lib/keyboard-shortcuts';
 
 export default function EmployeesPage({ user }) {
   const toast = useToast();
@@ -41,6 +43,20 @@ export default function EmployeesPage({ user }) {
   useEffect(() => {
     loadEmployees();
   }, [debouncedSearch, department, page]);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    'ctrl+n': () => {
+      if (isAdmin) {
+        setIsAddDialogOpen(true);
+      }
+    },
+    'ctrl+e': () => {
+      if (employees.length > 0) {
+        handleExportCSV();
+      }
+    },
+  }, [isAdmin, employees]);
 
   const loadDepartments = async () => {
     try {
@@ -217,6 +233,24 @@ export default function EmployeesPage({ user }) {
     setSelectedEmployee(null);
   };
 
+  const handleExportCSV = () => {
+    try {
+      exportEmployeesToCSV(employees);
+      toast.success('Employees exported to CSV successfully!');
+    } catch (error) {
+      toast.error('Failed to export: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleExportPDF = () => {
+    try {
+      exportEmployeesToPDF(employees);
+      toast.success('Employees exported to PDF successfully!');
+    } catch (error) {
+      toast.error('Failed to export: ' + (error.message || 'Unknown error'));
+    }
+  };
+
   const openEditDialog = (employee) => {
     setSelectedEmployee(employee);
     setFormData({
@@ -244,12 +278,37 @@ export default function EmployeesPage({ user }) {
             Manage your organization's workforce
           </p>
         </div>
-        {isAdmin && (
-          <Button onClick={() => setIsAddDialogOpen(true)} className="w-full sm:w-auto">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Employee
-          </Button>
-        )}
+        <div className="flex gap-2 w-full sm:w-auto">
+          {employees.length > 0 && (
+            <>
+              <Button 
+                variant="outline" 
+                onClick={handleExportCSV}
+                className="flex-1 sm:flex-none"
+                title="Export to CSV (Ctrl+E)"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">Export CSV</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={handleExportPDF}
+                className="flex-1 sm:flex-none"
+                title="Export to PDF"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">Export PDF</span>
+              </Button>
+            </>
+          )}
+          {isAdmin && (
+            <Button onClick={() => setIsAddDialogOpen(true)} className="flex-1 sm:flex-none" title="Add Employee (Ctrl+N)">
+              <Plus className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">Add Employee</span>
+              <span className="sm:hidden">Add</span>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
@@ -259,7 +318,7 @@ export default function EmployeesPage({ user }) {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Search employees..."
+                placeholder="Search employees... (Ctrl+K)"
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -267,6 +326,12 @@ export default function EmployeesPage({ user }) {
                 }}
                 className="pl-10"
                 aria-label="Search employees by name or position"
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setSearch('');
+                    setPage(1);
+                  }
+                }}
               />
             </div>
             <Select
@@ -280,7 +345,7 @@ export default function EmployeesPage({ user }) {
                 <SelectValue placeholder="Select department" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="all">All Departments</SelectItem>
                 {departments.map((dept) => (
                   <SelectItem key={dept.id} value={dept.name}>
                     {dept.name}
@@ -289,6 +354,51 @@ export default function EmployeesPage({ user }) {
               </SelectContent>
             </Select>
           </div>
+          {(search || department !== 'all') && (
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-muted-foreground">Active filters:</span>
+              {search && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-md text-sm">
+                  Search: "{search}"
+                  <button
+                    onClick={() => {
+                      setSearch('');
+                      setPage(1);
+                    }}
+                    className="hover:text-primary/80"
+                    aria-label="Clear search"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {department !== 'all' && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-md text-sm">
+                  Department: {department}
+                  <button
+                    onClick={() => {
+                      setDepartment('all');
+                      setPage(1);
+                    }}
+                    className="hover:text-primary/80"
+                    aria-label="Clear department filter"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setDepartment('all');
+                  setPage(1);
+                }}
+                className="text-sm text-muted-foreground hover:text-foreground underline"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
         </CardContent>
       </Card>
 

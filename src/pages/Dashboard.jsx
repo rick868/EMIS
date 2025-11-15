@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Link, useLocation } from 'react-router-dom';
+import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Users, MessageSquare, BarChart3, Settings, LogOut, Moon, Sun, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import HomePage from './HomePage';
@@ -7,11 +7,19 @@ import EmployeesPage from './EmployeesPage';
 import FeedbackPage from './FeedbackPage';
 import AnalyticsPage from './AnalyticsPage';
 import SettingsPage from './SettingsPage';
+import KeyboardShortcutsDialog from '@/components/KeyboardShortcutsDialog';
+import { useKeyboardShortcuts } from '@/lib/keyboard-shortcuts';
 
 export default function Dashboard({ user, onLogout }) {
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    // Check localStorage for saved preference
+    const saved = localStorage.getItem('darkMode');
+    return saved ? JSON.parse(saved) : false;
+  });
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Close sidebar on mobile when clicking outside
   useEffect(() => {
@@ -24,10 +32,42 @@ export default function Dashboard({ user, onLogout }) {
     return () => window.removeEventListener('resize', handleResize);
   }, [sidebarOpen]);
 
+  // Apply dark mode on mount
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+
   const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.documentElement.classList.toggle('dark');
+    const newMode = !darkMode;
+    setDarkMode(newMode);
+    localStorage.setItem('darkMode', JSON.stringify(newMode));
+    if (newMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   };
+
+  // Global keyboard shortcuts
+  useKeyboardShortcuts({
+    'ctrl+1': () => navigate('/dashboard'),
+    'ctrl+2': () => navigate('/dashboard/employees'),
+    'ctrl+3': () => navigate('/dashboard/feedback'),
+    'ctrl+4': () => {
+      if (user.role === 'ADMIN' || user.role === 'HR') {
+        navigate('/dashboard/analytics');
+      }
+    },
+    'ctrl+5': () => navigate('/dashboard/settings'),
+    'ctrl+/': (e) => {
+      e.preventDefault();
+      setShortcutsOpen(true);
+    },
+  }, [navigate, user.role]);
 
   const navigation = [
     { name: 'Home', path: '/dashboard', icon: Home },
@@ -144,6 +184,9 @@ export default function Dashboard({ user, onLogout }) {
           </Routes>
         </main>
       </div>
+
+      {/* Keyboard Shortcuts Dialog */}
+      <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
     </div>
   );
 }

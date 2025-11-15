@@ -7,9 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiFetch, formatDateTime, validators } from '@/lib/utils';
-import { Plus, MessageSquare, Filter } from 'lucide-react';
+import { Plus, MessageSquare, Filter, Download, FileText } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
+import { exportFeedbackToCSV, exportFeedbackToPDF } from '@/lib/export';
 
 export default function FeedbackPage({ user }) {
   const toast = useToast();
@@ -150,6 +151,24 @@ export default function FeedbackPage({ user }) {
     });
   };
 
+  const handleExportCSV = () => {
+    try {
+      exportFeedbackToCSV(feedback);
+      toast.success('Feedback exported to CSV successfully!');
+    } catch (error) {
+      toast.error('Failed to export: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  const handleExportPDF = () => {
+    try {
+      exportFeedbackToPDF(feedback);
+      toast.success('Feedback exported to PDF successfully!');
+    } catch (error) {
+      toast.error('Failed to export: ' + (error.message || 'Unknown error'));
+    }
+  };
+
   const groupedFeedback = feedback.reduce((acc, item) => {
     if (!acc[item.category]) {
       acc[item.category] = [];
@@ -169,10 +188,35 @@ export default function FeedbackPage({ user }) {
               : 'Share your thoughts and suggestions'}
           </p>
         </div>
-        <Button onClick={() => setIsSubmitDialogOpen(true)} className="w-full sm:w-auto">
-          <Plus className="w-4 h-4 mr-2" />
-          Submit Feedback
-        </Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          {canViewAllFeedback && feedback.length > 0 && (
+            <>
+              <Button 
+                variant="outline" 
+                onClick={handleExportCSV}
+                className="flex-1 sm:flex-none"
+                title="Export to CSV"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">Export CSV</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={handleExportPDF}
+                className="flex-1 sm:flex-none"
+                title="Export to PDF"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">Export PDF</span>
+              </Button>
+            </>
+          )}
+          <Button onClick={() => setIsSubmitDialogOpen(true)} className="flex-1 sm:flex-none">
+            <Plus className="w-4 h-4 mr-2" />
+            <span className="hidden sm:inline">Submit Feedback</span>
+            <span className="sm:hidden">Submit</span>
+          </Button>
+        </div>
       </div>
 
       {canViewAllFeedback ? (

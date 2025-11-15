@@ -132,6 +132,13 @@
    - ✅ Updated frontend to send IDs when creating/updating
    - ✅ Category selection fixed for employees in feedback form
 
+### Completed Low-Priority Items:
+1. ✅ **Data export (CSV/PDF)** - Export employees and feedback to CSV/PDF
+2. ✅ **Keyboard shortcuts** - Global shortcuts for navigation (Ctrl+1-5) and actions (Ctrl+N, Ctrl+E)
+3. ✅ **Advanced search filters** - Active filter display with quick clear options
+4. ✅ **Dark mode persistence** - Preference saved to localStorage
+5. ✅ **Keyboard shortcuts help** - Dialog accessible via Ctrl+/
+
 ## 🎯 Recommended Next Steps
 
 1. ✅ **Install alert-dialog package** and replace confirm() calls - DONE
