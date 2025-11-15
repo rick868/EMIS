@@ -218,7 +218,7 @@ app.get('/api/employees/:id', authenticateToken, async (req, res) => {
 // POST /api/employees - Create employee (Admin only)
 app.post('/api/employees', authenticateToken, authorize('ADMIN'), async (req, res) => {
   try {
-    const { name, department, position, salary } = req.body;
+    const { name, department, departmentId, position, salary } = req.body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ error: 'Employee name is required' });
@@ -243,10 +243,25 @@ app.post('/api/employees', authenticateToken, authorize('ADMIN'), async (req, re
     const sanitizedDept = department.trim().replace(/[<>]/g, '').replace(/javascript:/gi, '');
     const sanitizedPosition = position.trim().replace(/[<>]/g, '').replace(/javascript:/gi, '');
 
+    // Find department by ID if provided, otherwise by name
+    let deptId = null;
+    if (departmentId) {
+      const dept = await prisma.department.findUnique({ where: { id: parseInt(departmentId) } });
+      if (dept) {
+        deptId = dept.id;
+      }
+    } else {
+      const dept = await prisma.department.findFirst({ where: { name: sanitizedDept } });
+      if (dept) {
+        deptId = dept.id;
+      }
+    }
+
     const employee = await prisma.employee.create({
       data: {
         name: sanitizedName,
         department: sanitizedDept,
+        departmentId: deptId,
         position: sanitizedPosition,
         salary: numSalary,
       },
@@ -270,17 +285,34 @@ app.post('/api/employees', authenticateToken, authorize('ADMIN'), async (req, re
 // PUT /api/employees/:id - Update employee (Admin only)
 app.put('/api/employees/:id', authenticateToken, authorize('ADMIN'), async (req, res) => {
   try {
-    const { name, department, position, salary } = req.body;
+    const { name, department, departmentId, position, salary } = req.body;
     const id = parseInt(req.params.id);
+
+    // Find department by ID if provided, otherwise by name
+    let deptId = null;
+    if (departmentId) {
+      const dept = await prisma.department.findUnique({ where: { id: parseInt(departmentId) } });
+      if (dept) {
+        deptId = dept.id;
+      }
+    } else if (department) {
+      const dept = await prisma.department.findFirst({ where: { name: department.trim() } });
+      if (dept) {
+        deptId = dept.id;
+      }
+    }
+
+    const updateData = {
+      ...(name && { name }),
+      ...(department && { department }),
+      ...(deptId !== null && { departmentId: deptId }),
+      ...(position && { position }),
+      ...(salary !== undefined && { salary: parseFloat(salary) }),
+    };
 
     const employee = await prisma.employee.update({
       where: { id },
-      data: {
-        ...(name && { name }),
-        ...(department && { department }),
-        ...(position && { position }),
-        ...(salary !== undefined && { salary: parseFloat(salary) }),
-      },
+      data: updateData,
     });
 
     await prisma.log.create({
@@ -366,17 +398,32 @@ app.get('/api/feedback', authenticateToken, authorize('ADMIN', 'HR'), async (req
 // POST /api/feedback - Submit feedback
 app.post('/api/feedback', authenticateToken, async (req, res) => {
   try {
-    const { employeeId, category, message } = req.body;
+    const { employeeId, category, categoryId, message } = req.body;
 
     if (!employeeId || !category || !message) {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
+    // Find category by ID if provided, otherwise by name
+    let catId = null;
+    if (categoryId) {
+      const cat = await prisma.feedbackCategory.findUnique({ where: { id: parseInt(categoryId) } });
+      if (cat) {
+        catId = cat.id;
+      }
+    } else {
+      const cat = await prisma.feedbackCategory.findFirst({ where: { name: category.trim() } });
+      if (cat) {
+        catId = cat.id;
+      }
+    }
+
     const feedback = await prisma.feedback.create({
       data: {
         employeeId: parseInt(employeeId),
-        category,
-        message,
+        category: category.trim(),
+        categoryId: catId,
+        message: message.trim(),
       },
       include: { employee: true },
     });

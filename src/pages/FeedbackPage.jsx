@@ -101,11 +101,32 @@ export default function FeedbackPage({ user }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate category selection
+    if (!formData.category || formData.category.trim() === '') {
+      toast.error('Please select a category');
+      return;
+    }
+    
+    // Validate message
+    if (!formData.message || formData.message.trim() === '') {
+      toast.error('Please enter a feedback message');
+      return;
+    }
+    
     setIsSubmitting(true);
     try {
+      // Find category ID
+      const selectedCat = categories.find(c => c.name === formData.category);
+      const categoryId = selectedCat ? selectedCat.id : null;
+
       await apiFetch('/api/feedback', {
         method: 'POST',
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          categoryId: categoryId,
+          message: formData.message.trim(),
+        }),
       });
       setIsSubmitDialogOpen(false);
       resetForm();
@@ -121,9 +142,10 @@ export default function FeedbackPage({ user }) {
   };
 
   const resetForm = () => {
+    const defaultCategory = categories.length > 0 ? categories[0].name : '';
     setFormData({
       employeeId: user.employee?.id || '',
-      category: categories.length > 0 ? categories[0].name : '',
+      category: defaultCategory,
       message: '',
     });
   };
@@ -311,7 +333,7 @@ export default function FeedbackPage({ user }) {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="category">Category</Label>
-                  {canViewAllFeedback && (
+                  {(canViewAllFeedback || user.role === 'EMPLOYEE') && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -324,22 +346,28 @@ export default function FeedbackPage({ user }) {
                     </Button>
                   )}
                 </div>
-                <Select
-                  value={formData.category}
-                  onValueChange={(value) => setFormData({ ...formData, category: value })}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.name}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {categories.length === 0 ? (
+                  <div className="text-sm text-muted-foreground p-2 border rounded-md">
+                    No categories available. Please add a category first.
+                  </div>
+                ) : (
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => setFormData({ ...formData, category: value })}
+                    required
+                  >
+                    <SelectTrigger aria-label="Select feedback category">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.name}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <div className="space-y-2">

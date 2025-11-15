@@ -120,11 +120,16 @@ export default function EmployeesPage({ user }) {
 
     setIsSubmitting(true);
     try {
+      // Find department ID
+      const selectedDept = departments.find(d => d.name === formData.department);
+      const departmentId = selectedDept ? selectedDept.id : null;
+
       await apiFetch('/api/employees', {
         method: 'POST',
         body: JSON.stringify({
           name: formData.name.trim(),
           department: formData.department,
+          departmentId: departmentId,
           position: formData.position.trim(),
           salary: parseFloat(formData.salary),
         }),
@@ -165,11 +170,16 @@ export default function EmployeesPage({ user }) {
 
     setIsSubmitting(true);
     try {
+      // Find department ID
+      const selectedDept = departments.find(d => d.name === formData.department);
+      const departmentId = selectedDept ? selectedDept.id : null;
+
       await apiFetch(`/api/employees/${selectedEmployee.id}`, {
         method: 'PUT',
         body: JSON.stringify({
           name: formData.name.trim(),
           department: formData.department,
+          departmentId: departmentId,
           position: formData.position.trim(),
           salary: parseFloat(formData.salary),
         }),
