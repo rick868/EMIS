@@ -85,8 +85,8 @@ export default function AnalyticsPage({ user }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
-        <p className="text-muted-foreground mt-1">
+        <h1 className="text-2xl md:text-3xl font-bold">Analytics Dashboard</h1>
+        <p className="text-muted-foreground mt-1 text-sm md:text-base">
           Performance metrics and insights
         </p>
       </div>
@@ -112,7 +112,7 @@ export default function AnalyticsPage({ user }) {
       </div>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Employees by Department */}
         <Card>
           <CardHeader>
@@ -214,7 +214,7 @@ export default function AnalyticsPage({ user }) {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Department Overview</CardTitle>

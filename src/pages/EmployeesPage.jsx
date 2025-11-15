@@ -147,15 +147,15 @@ export default function EmployeesPage({ user }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Employees</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl md:text-3xl font-bold">Employees</h1>
+          <p className="text-muted-foreground mt-1 text-sm md:text-base">
             Manage your organization's workforce
           </p>
         </div>
         {isAdmin && (
-          <Button onClick={() => setIsAddDialogOpen(true)}>
+          <Button onClick={() => setIsAddDialogOpen(true)} className="w-full sm:w-auto">
             <Plus className="w-4 h-4 mr-2" />
             Add Employee
           </Button>
@@ -164,8 +164,8 @@ export default function EmployeesPage({ user }) {
 
       {/* Filters */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CardContent className="pt-4 md:pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -218,7 +218,8 @@ export default function EmployeesPage({ user }) {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b">
@@ -264,15 +265,65 @@ export default function EmployeesPage({ user }) {
                 </table>
               </div>
 
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-4">
+                {employees.map((employee) => (
+                  <Card key={employee.id}>
+                    <CardContent className="pt-4">
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h3 className="font-semibold text-lg">{employee.name}</h3>
+                            <p className="text-sm text-muted-foreground">{employee.position}</p>
+                          </div>
+                          {isAdmin && (
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEditDialog(employee)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openDeleteDialog(employee)}
+                              >
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Department:</span>
+                            <p className="font-medium">{employee.department}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Salary:</span>
+                            <p className="font-medium">{formatCurrency(employee.salary)}</p>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-muted-foreground">Date Joined:</span>
+                            <p className="font-medium">{formatDate(employee.dateJoined)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
               {/* Pagination */}
               {pagination && pagination.totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <p className="text-sm text-muted-foreground">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+                  <p className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
                     Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
                     {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
                     {pagination.total} employees
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="icon"
@@ -281,7 +332,7 @@ export default function EmployeesPage({ user }) {
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </Button>
-                    <span className="flex items-center px-4">
+                    <span className="flex items-center px-2 sm:px-4 text-sm">
                       Page {pagination.page} of {pagination.totalPages}
                     </span>
                     <Button
@@ -302,7 +353,7 @@ export default function EmployeesPage({ user }) {
 
       {/* Add Employee Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] md:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Employee</DialogTitle>
             <DialogDescription>
@@ -388,7 +439,7 @@ export default function EmployeesPage({ user }) {
 
       {/* Edit Employee Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] md:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Employee</DialogTitle>
             <DialogDescription>
@@ -474,7 +525,7 @@ export default function EmployeesPage({ user }) {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] md:max-w-md">
           <DialogHeader>
             <DialogTitle>Delete Employee</DialogTitle>
             <DialogDescription>
@@ -497,7 +548,7 @@ export default function EmployeesPage({ user }) {
 
       {/* Add Department Dialog */}
       <Dialog open={isAddDeptDialogOpen} onOpenChange={setIsAddDeptDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] md:max-w-md">
           <DialogHeader>
             <DialogTitle>Add New Department</DialogTitle>
             <DialogDescription>

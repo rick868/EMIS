@@ -261,8 +261,8 @@ export default function SettingsPage({ user }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground mt-1">
+        <h1 className="text-2xl md:text-3xl font-bold">Settings</h1>
+        <p className="text-muted-foreground mt-1 text-sm md:text-base">
           Manage system configuration and preferences
         </p>
       </div>
@@ -379,12 +379,12 @@ export default function SettingsPage({ user }) {
         {isAdmin && (
           <TabsContent value="departments" className="space-y-4">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <CardTitle>Department Management</CardTitle>
                   <CardDescription>Manage organizational departments</CardDescription>
                 </div>
-                <Button onClick={() => setIsAddDeptDialogOpen(true)}>
+                <Button onClick={() => setIsAddDeptDialogOpen(true)} className="w-full sm:w-auto">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Department
                 </Button>
@@ -393,23 +393,55 @@ export default function SettingsPage({ user }) {
                 {departments.length === 0 ? (
                   <p className="text-center py-8 text-muted-foreground">No departments found. Add your first department.</p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left p-4 font-semibold">Name</th>
-                          <th className="text-left p-4 font-semibold">Description</th>
-                          <th className="text-left p-4 font-semibold">Created</th>
-                          <th className="text-left p-4 font-semibold">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {departments.map((dept) => (
-                          <tr key={dept.id} className="border-b hover:bg-accent/50 transition-colors">
-                            <td className="p-4 font-medium">{dept.name}</td>
-                            <td className="p-4 text-muted-foreground">{dept.description || '-'}</td>
-                            <td className="p-4">{formatDateTime(dept.createdAt)}</td>
-                            <td className="p-4">
+                  <>
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left p-4 font-semibold">Name</th>
+                            <th className="text-left p-4 font-semibold">Description</th>
+                            <th className="text-left p-4 font-semibold">Created</th>
+                            <th className="text-left p-4 font-semibold">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {departments.map((dept) => (
+                            <tr key={dept.id} className="border-b hover:bg-accent/50 transition-colors">
+                              <td className="p-4 font-medium">{dept.name}</td>
+                              <td className="p-4 text-muted-foreground">{dept.description || '-'}</td>
+                              <td className="p-4">{formatDateTime(dept.createdAt)}</td>
+                              <td className="p-4">
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => openEditDeptDialog(dept)}
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDeleteDepartment(dept.id)}
+                                  >
+                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile Card View */}
+                    <div className="md:hidden space-y-4">
+                      {departments.map((dept) => (
+                        <Card key={dept.id}>
+                          <CardContent className="pt-4">
+                            <div className="flex items-start justify-between mb-3">
+                              <h3 className="font-semibold text-lg">{dept.name}</h3>
                               <div className="flex gap-2">
                                 <Button
                                   variant="ghost"
@@ -426,12 +458,22 @@ export default function SettingsPage({ user }) {
                                   <Trash2 className="w-4 h-4 text-destructive" />
                                 </Button>
                               </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                            </div>
+                            <div className="space-y-2 text-sm">
+                              <div>
+                                <span className="text-muted-foreground">Description: </span>
+                                <span>{dept.description || '-'}</span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Created: </span>
+                                <span>{formatDateTime(dept.createdAt)}</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -442,12 +484,12 @@ export default function SettingsPage({ user }) {
         {isAdmin && (
           <TabsContent value="categories" className="space-y-4">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <CardTitle>Feedback Category Management</CardTitle>
                   <CardDescription>Manage feedback submission categories</CardDescription>
                 </div>
-                <Button onClick={() => setIsAddCatDialogOpen(true)}>
+                <Button onClick={() => setIsAddCatDialogOpen(true)} className="w-full sm:w-auto">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Category
                 </Button>
@@ -456,23 +498,55 @@ export default function SettingsPage({ user }) {
                 {categories.length === 0 ? (
                   <p className="text-center py-8 text-muted-foreground">No categories found. Add your first category.</p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left p-4 font-semibold">Name</th>
-                          <th className="text-left p-4 font-semibold">Description</th>
-                          <th className="text-left p-4 font-semibold">Created</th>
-                          <th className="text-left p-4 font-semibold">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {categories.map((cat) => (
-                          <tr key={cat.id} className="border-b hover:bg-accent/50 transition-colors">
-                            <td className="p-4 font-medium">{cat.name}</td>
-                            <td className="p-4 text-muted-foreground">{cat.description || '-'}</td>
-                            <td className="p-4">{formatDateTime(cat.createdAt)}</td>
-                            <td className="p-4">
+                  <>
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left p-4 font-semibold">Name</th>
+                            <th className="text-left p-4 font-semibold">Description</th>
+                            <th className="text-left p-4 font-semibold">Created</th>
+                            <th className="text-left p-4 font-semibold">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {categories.map((cat) => (
+                            <tr key={cat.id} className="border-b hover:bg-accent/50 transition-colors">
+                              <td className="p-4 font-medium">{cat.name}</td>
+                              <td className="p-4 text-muted-foreground">{cat.description || '-'}</td>
+                              <td className="p-4">{formatDateTime(cat.createdAt)}</td>
+                              <td className="p-4">
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => openEditCatDialog(cat)}
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDeleteCategory(cat.id)}
+                                  >
+                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile Card View */}
+                    <div className="md:hidden space-y-4">
+                      {categories.map((cat) => (
+                        <Card key={cat.id}>
+                          <CardContent className="pt-4">
+                            <div className="flex items-start justify-between mb-3">
+                              <h3 className="font-semibold text-lg">{cat.name}</h3>
                               <div className="flex gap-2">
                                 <Button
                                   variant="ghost"
@@ -489,12 +563,22 @@ export default function SettingsPage({ user }) {
                                   <Trash2 className="w-4 h-4 text-destructive" />
                                 </Button>
                               </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                            </div>
+                            <div className="space-y-2 text-sm">
+                              <div>
+                                <span className="text-muted-foreground">Description: </span>
+                                <span>{cat.description || '-'}</span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Created: </span>
+                                <span>{formatDateTime(cat.createdAt)}</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -505,12 +589,12 @@ export default function SettingsPage({ user }) {
         {isAdmin && (
           <TabsContent value="users" className="space-y-4">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <CardTitle>User Management</CardTitle>
                   <CardDescription>Manage system users and roles</CardDescription>
                 </div>
-                <Button onClick={() => setIsAddUserDialogOpen(true)}>
+                <Button onClick={() => setIsAddUserDialogOpen(true)} className="w-full sm:w-auto">
                   <Plus className="w-4 h-4 mr-2" />
                   Add User
                 </Button>
@@ -604,7 +688,7 @@ export default function SettingsPage({ user }) {
 
       {/* Add User Dialog */}
       <Dialog open={isAddUserDialogOpen} onOpenChange={setIsAddUserDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] md:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New User</DialogTitle>
             <DialogDescription>Create a new system user account</DialogDescription>
@@ -676,7 +760,7 @@ export default function SettingsPage({ user }) {
 
       {/* Add Department Dialog */}
       <Dialog open={isAddDeptDialogOpen} onOpenChange={setIsAddDeptDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] md:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Department</DialogTitle>
             <DialogDescription>Create a new organizational department</DialogDescription>
@@ -717,7 +801,7 @@ export default function SettingsPage({ user }) {
 
       {/* Edit Department Dialog */}
       <Dialog open={isEditDeptDialogOpen} onOpenChange={setIsEditDeptDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] md:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Department</DialogTitle>
             <DialogDescription>Update department information</DialogDescription>
@@ -759,7 +843,7 @@ export default function SettingsPage({ user }) {
 
       {/* Add Category Dialog */}
       <Dialog open={isAddCatDialogOpen} onOpenChange={setIsAddCatDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] md:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Feedback Category</DialogTitle>
             <DialogDescription>Create a new feedback category</DialogDescription>
@@ -800,7 +884,7 @@ export default function SettingsPage({ user }) {
 
       {/* Edit Category Dialog */}
       <Dialog open={isEditCatDialogOpen} onOpenChange={setIsEditCatDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] md:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Feedback Category</DialogTitle>
             <DialogDescription>Update category information</DialogDescription>

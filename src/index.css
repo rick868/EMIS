@@ -57,3 +57,26 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Responsive utilities */
+@layer utilities {
+  /* Ensure tables are scrollable on mobile */
+  .table-responsive {
+    @apply block md:table;
+  }
+  
+  /* Prevent text overflow on small screens */
+  .text-responsive {
+    @apply text-sm md:text-base;
+  }
+  
+  /* Responsive padding */
+  .p-responsive {
+    @apply p-4 md:p-6;
+  }
+  
+  /* Responsive gap */
+  .gap-responsive {
+    @apply gap-4 md:gap-6;
+  }
+}

@@ -124,16 +124,16 @@ export default function FeedbackPage({ user }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Feedback</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl md:text-3xl font-bold">Feedback</h1>
+          <p className="text-muted-foreground mt-1 text-sm md:text-base">
             {canViewAllFeedback
               ? 'Review and manage employee feedback'
               : 'Share your thoughts and suggestions'}
           </p>
         </div>
-        <Button onClick={() => setIsSubmitDialogOpen(true)}>
+        <Button onClick={() => setIsSubmitDialogOpen(true)} className="w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-2" />
           Submit Feedback
         </Button>
@@ -141,14 +141,14 @@ export default function FeedbackPage({ user }) {
 
       {canViewAllFeedback ? (
         <Tabs defaultValue="all" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <TabsList>
-              <TabsTrigger value="all">All Feedback</TabsTrigger>
-              <TabsTrigger value="by-category">By Category</TabsTrigger>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <TabsList className="w-full sm:w-auto">
+              <TabsTrigger value="all" className="flex-1 sm:flex-none">All Feedback</TabsTrigger>
+              <TabsTrigger value="by-category" className="flex-1 sm:flex-none">By Category</TabsTrigger>
             </TabsList>
             
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-full sm:w-48">
                 <Filter className="w-4 h-4 mr-2" />
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
@@ -264,7 +264,7 @@ export default function FeedbackPage({ user }) {
 
       {/* Submit Feedback Dialog */}
       <Dialog open={isSubmitDialogOpen} onOpenChange={setIsSubmitDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-[95vw] md:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Submit Feedback</DialogTitle>
             <DialogDescription>
@@ -355,7 +355,7 @@ export default function FeedbackPage({ user }) {
 
       {/* Add Category Dialog */}
       <Dialog open={isAddCategoryDialogOpen} onOpenChange={setIsAddCategoryDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] md:max-w-md">
           <DialogHeader>
             <DialogTitle>Add New Feedback Category</DialogTitle>
             <DialogDescription>

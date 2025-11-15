@@ -51,14 +51,14 @@ export default function HomePage({ user }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Welcome back, {user.username}!</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="text-2xl md:text-3xl font-bold">Welcome back, {user.username}!</h1>
+        <p className="text-muted-foreground mt-2 text-sm md:text-base">
           Here's what's happening in your organization today.
         </p>
       </div>
 
       {(user.role === 'ADMIN' || user.role === 'HR') && !loading && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {statCards.map((stat, index) => {
             const Icon = stat.icon;
             return (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Home, Users, MessageSquare, BarChart3, Settings, LogOut, Moon, Sun, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,17 @@ export default function Dashboard({ user, onLogout }) {
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const location = useLocation();
+
+  // Close sidebar on mobile when clicking outside
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768 && !sidebarOpen) {
+        setSidebarOpen(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [sidebarOpen]);
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
@@ -36,19 +47,27 @@ export default function Dashboard({ user, onLogout }) {
   };
 
   return (
-    <div className="h-screen flex overflow-hidden bg-background">
+    <div className="h-screen flex overflow-hidden bg-background relative">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
         className={`${
-          sidebarOpen ? 'w-64' : 'w-0'
-        } transition-all duration-300 ease-in-out bg-card border-r border-border flex flex-col overflow-hidden`}
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        } fixed md:static inset-y-0 left-0 z-50 w-64 transition-all duration-300 ease-in-out bg-card border-r border-border flex flex-col overflow-hidden`}
       >
-        <div className="p-6 border-b border-border">
-          <h1 className="text-2xl font-bold text-primary">EMIS</h1>
-          <p className="text-sm text-muted-foreground mt-1">Employee Management</p>
+        <div className="p-4 md:p-6 border-b border-border">
+          <h1 className="text-xl md:text-2xl font-bold text-primary">EMIS</h1>
+          <p className="text-xs md:text-sm text-muted-foreground mt-1">Employee Management</p>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        <nav className="flex-1 p-2 md:p-4 space-y-2 overflow-y-auto">
           {navigation.map((item) => {
             const Icon = item.icon;
             return (
@@ -60,18 +79,18 @@ export default function Dashboard({ user, onLogout }) {
                       : 'hover:bg-accent text-foreground'
                   }`}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{item.name}</span>
+                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  <span className="font-medium truncate">{item.name}</span>
                 </div>
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-border space-y-2">
-          <div className="px-4 py-2">
-            <p className="text-sm font-medium">{user.username}</p>
-            <p className="text-xs text-muted-foreground">{user.role}</p>
+        <div className="p-2 md:p-4 border-t border-border space-y-2">
+          <div className="px-2 md:px-4 py-2">
+            <p className="text-xs md:text-sm font-medium truncate">{user.username}</p>
+            <p className="text-xs text-muted-foreground truncate">{user.role}</p>
           </div>
           <Button
             variant="ghost"
@@ -87,16 +106,17 @@ export default function Dashboard({ user, onLogout }) {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-card border-b border-border px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <header className="bg-card border-b border-border px-4 md:px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 md:gap-4">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="md:hidden"
             >
-              {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              <Menu className="w-5 h-5" />
             </Button>
-            <h2 className="text-xl font-semibold">
+            <h2 className="text-lg md:text-xl font-semibold truncate">
               {navigation.find(n => isActive(n.path))?.name || 'Dashboard'}
             </h2>
           </div>
@@ -111,7 +131,7 @@ export default function Dashboard({ user, onLogout }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <Routes>
             <Route path="/" element={<HomePage user={user} />} />
             <Route path="/employees" element={<EmployeesPage user={user} />} />
