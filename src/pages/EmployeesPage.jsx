@@ -36,6 +36,8 @@ export default function EmployeesPage({ user }) {
 
   const debouncedSearch = useDebounce(search, 500);
 
+  const isAdmin = user.role === 'ADMIN';
+
   useEffect(() => {
     loadDepartments();
   }, []);
@@ -266,8 +268,6 @@ export default function EmployeesPage({ user }) {
     setSelectedEmployee(employee);
     setIsDeleteDialogOpen(true);
   };
-
-  const isAdmin = user.role === 'ADMIN';
 
   return (
     <div className="space-y-6">
