@@ -2,51 +2,219 @@ const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const slowDown = require('express-slow-down');
+const cookieParser = require('cookie-parser');
+const csrf = require('csurf');
+const cors = require('cors');
 
 const prisma = new PrismaClient();
 const app = express();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
+// Validate JWT_SECRET in production
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  console.error('FATAL ERROR: JWT_SECRET is not defined in production');
+  process.exit(1);
+}
+
+const JWT_SECRET = process.env.JWT_SECRET || 'development-secret-key';
+const JWT_ACCESS_EXPIRY = '15m';  // Short-lived access token
+const JWT_REFRESH_EXPIRY = '7d';   // Longer-lived refresh token
+
+// Security Middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'"],
+      imgSrc: ["'self'"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: [],
+    },
+  },
+  hsts: {
+    maxAge: 31536000, // 1 year in seconds
+    includeSubDomains: true,
+    preload: true
+  },
+  referrerPolicy: { policy: 'same-origin' },
+  xssFilter: true,
+  noSniff: true,
+  hidePoweredBy: true,
+  frameguard: { action: 'deny' }
+}));
+
+// Configure CORS for production and development
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['app://.'] 
+    : ['http://localhost:5173', 'http://localhost:3001'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+  exposedHeaders: ['X-CSRF-Token']
+};
+app.use(cors(corsOptions));
 
 // Rate limiting
-const limiter = rateLimit({
+const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
+  max: 200, // Limit each IP to 200 requests per windowMs
   standardHeaders: true,
   legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+  skip: req => {
+    // Skip rate limiting for static assets in production
+    return process.env.NODE_ENV === 'production' && 
+           (req.path.startsWith('/static/') || req.path.endsWith('.js'));
+  }
 });
 
+// Slower responses after max requests
+const speedLimiter = slowDown({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  delayAfter: 100, // Allow 100 requests per 15 minutes, then...
+  delayMs: 500 // Begin adding 500ms of delay per request above 100
+});
+
+// Auth rate limiting (stricter)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // Limit login attempts to 5 per windowMs
-  message: 'Too many login attempts, please try again later.',
+  message: { error: 'Too many login attempts, please try again later.' },
   skipSuccessfulRequests: true,
+  skip: req => req.method !== 'POST' // Only apply to POST requests
 });
 
-// Middleware
-app.use(express.json());
-app.use('/api/', limiter); // Apply rate limiting to all API routes
+// Apply rate limiting and speed limiting
+app.use('/api/', apiLimiter);
+app.use('/api/', speedLimiter);
 
-// CORS for Electron renderer
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
+// JSON parsing with size limit
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+
+// Cookie parser
+app.use(cookieParser());
+
+// CSRF protection (exclude API routes that don't need it)
+const csrfProtection = csrf({
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 3600 // 1 hour
+  },
+  value: (req) => {
+    // Get CSRF token from header, body, or query string
+    return req.headers['x-csrf-token'] || req.body._csrf || req.query._csrf;
   }
+});
+
+// Apply CSRF protection to non-API routes and specific API routes
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/') && ![
+    '/api/auth/login',
+    '/api/auth/refresh',
+    '/api/auth/logout'
+  ].includes(req.path)) {
+    return next();
+  }
+  csrfProtection(req, res, next);
+});
+
+// Add CSRF token to response headers
+app.use((req, res, next) => {
+  res.cookie('XSRF-TOKEN', req.csrfToken?.() || '', {
+    httpOnly: false, // Needs to be readable by client-side JS
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 3600000 // 1 hour
+  });
   next();
 });
 
+// JWT token generation
+const generateTokens = (user) => {
+  const accessToken = jwt.sign(
+    { 
+      id: user.id, 
+      email: user.email, 
+      role: user.role,
+      type: 'access'
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_ACCESS_EXPIRY }
+  );
+
+  const refreshToken = jwt.sign(
+    { 
+      id: user.id,
+      email: user.email,
+      type: 'refresh'
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_REFRESH_EXPIRY }
+  );
+
+  return { accessToken, refreshToken };
+};
+
+// Store refresh tokens (in production, use Redis or database)
+const refreshTokens = new Set();
+
 // Authentication middleware
-const authenticateToken = (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
+  // Get token from Authorization header or cookies
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = authHeader?.startsWith('Bearer ') 
+    ? authHeader.split(' ')[1] 
+    : req.cookies?.accessToken;
 
   if (!token) {
     return res.status(401).json({ error: 'Access token required' });
+  }
+
+  try {
+    // Verify token
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Check if token is an access token
+    if (decoded.type !== 'access') {
+      return res.status(403).json({ error: 'Invalid token type' });
+    }
+
+    // Get user from database
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        username: true,
+        employee: true
+      }
+    });
+
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    // Attach user to request
+    req.user = user;
+    next();
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        error: 'Token expired',
+        code: 'TOKEN_EXPIRED'
+      });
+    }
+    return res.status(403).json({ error: 'Invalid token' });
   }
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
@@ -76,28 +244,58 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password required' });
+      return res.status(400).json({ 
+        error: 'Email and password are required',
+        code: 'MISSING_CREDENTIALS'
+      });
     }
 
+    // Find user by email
     const user = await prisma.user.findUnique({
       where: { email },
-      include: { employee: true },
+      include: { employee: true }
     });
 
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      // Simulate password verification to prevent timing attacks
+      await bcrypt.compare('dummy-password', '$2b$10$dummyhash');
+      return res.status(401).json({ 
+        error: 'Invalid email or password',
+        code: 'INVALID_CREDENTIALS'
+      });
     }
 
+    // Verify password
     const validPassword = await bcrypt.compare(password, user.passwordHash);
     if (!validPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ 
+        error: 'Invalid email or password',
+        code: 'INVALID_CREDENTIALS'
+      });
     }
 
-    const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    // Generate tokens
+    const { accessToken, refreshToken } = generateTokens(user);
+    
+    // Store refresh token (in production, use Redis or database)
+    refreshTokens.add(refreshToken);
+
+    // Set secure, httpOnly cookies
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 15 * 60 * 1000, // 15 minutes
+      path: '/api/'
+    });
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/api/auth/refresh'
+    });
 
     // Log the login
     await prisma.log.create({
@@ -105,22 +303,153 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         action: 'USER_LOGIN',
         userId: user.id,
         details: `User ${user.username} logged in`,
+        ipAddress: req.ip
       },
     });
 
+    // Return user data (excluding password)
+    const { passwordHash, ...userData } = user;
+    
     res.json({
-      token,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        employee: user.employee,
-      },
+      user: userData,
+      // For clients that can't use httpOnly cookies
+      token: accessToken,
+      refreshToken: process.env.NODE_ENV === 'development' ? refreshToken : undefined
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      code: 'SERVER_ERROR'
+    });
+  }
+});
+
+// POST /api/auth/refresh - Refresh access token
+app.post('/api/auth/refresh', async (req, res) => {
+  const { refreshToken } = req.cookies || req.body;
+  
+  if (!refreshToken) {
+    return res.status(401).json({ 
+      error: 'Refresh token required',
+      code: 'REFRESH_TOKEN_REQUIRED'
+    });
+  }
+
+  try {
+    // Verify refresh token
+    const decoded = jwt.verify(refreshToken, JWT_SECRET);
+    
+    if (decoded.type !== 'refresh') {
+      return res.status(403).json({ 
+        error: 'Invalid token type',
+        code: 'INVALID_TOKEN_TYPE'
+      });
+    }
+
+    // In production, validate against stored refresh tokens
+    if (!refreshTokens.has(refreshToken)) {
+      return res.status(403).json({ 
+        error: 'Invalid refresh token',
+        code: 'INVALID_REFRESH_TOKEN'
+      });
+    }
+
+    // Get user from database
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        username: true,
+        employee: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ 
+        error: 'User not found',
+        code: 'USER_NOT_FOUND'
+      });
+    }
+
+    // Generate new tokens
+    const { accessToken, refreshToken: newRefreshToken } = generateTokens(user);
+    
+    // Update refresh token in store
+    refreshTokens.delete(refreshToken);
+    refreshTokens.add(newRefreshToken);
+
+    // Set new cookies
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 15 * 60 * 1000, // 15 minutes
+      path: '/api/'
+    });
+
+    res.cookie('refreshToken', newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/api/auth/refresh'
+    });
+
+    res.json({
+      accessToken,
+      refreshToken: process.env.NODE_ENV === 'development' ? newRefreshToken : undefined
+    });
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        error: 'Refresh token expired',
+        code: 'REFRESH_TOKEN_EXPIRED'
+      });
+    }
+    
+    res.status(403).json({ 
+      error: 'Invalid refresh token',
+      code: 'INVALID_REFRESH_TOKEN'
+    });
+  }
+});
+
+// POST /api/auth/logout - Logout
+app.post('/api/auth/logout', authenticateToken, async (req, res) => {
+  try {
+    const { refreshToken } = req.cookies || req.body;
+    
+    // Remove refresh token from store
+    if (refreshToken) {
+      refreshTokens.delete(refreshToken);
+    }
+
+    // Clear cookies
+    res.clearCookie('accessToken', { path: '/api/' });
+    res.clearCookie('refreshToken', { path: '/api/auth/refresh' });
+    
+    // Log the logout
+    await prisma.log.create({
+      data: {
+        action: 'USER_LOGOUT',
+        userId: req.user.id,
+        details: `User ${req.user.username} logged out`,
+        ipAddress: req.ip
+      },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      code: 'SERVER_ERROR'
+    });
   }
 });
 
