@@ -1024,6 +1024,59 @@ app.post('/api/leaves', authenticateToken, async (req, res) => {
   }
 });
 
+app.patch('/api/leaves/:id', authenticateToken, authorize('ADMIN', 'HR'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status || !['PENDING', 'APPROVED', 'REJECTED'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status value' });
+    }
+
+    const existingLeave = await prisma.leave.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        employee: {
+          select: { id: true, name: true, department: true, position: true },
+        },
+      },
+    });
+
+    if (!existingLeave) {
+      return res.status(404).json({ error: 'Leave request not found' });
+    }
+
+    if (existingLeave.status === status) {
+      return res.json(existingLeave);
+    }
+
+    const updatedLeave = await prisma.leave.update({
+      where: { id: parseInt(id) },
+      data: {
+        status,
+      },
+      include: {
+        employee: {
+          select: { id: true, name: true, department: true, position: true },
+        },
+      },
+    });
+
+    await prisma.log.create({
+      data: {
+        action: 'LEAVE_STATUS_UPDATE',
+        userId: req.user.id,
+        details: `Leave request #${id} ${status.toLowerCase()} by ${req.user.username}`,
+      },
+    });
+
+    res.json(updatedLeave);
+  } catch (error) {
+    console.error('Update leave status error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ==================== ANALYTICS ROUTES ====================
 
 // GET /api/analytics - Get analytics data

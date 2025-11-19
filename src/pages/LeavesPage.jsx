@@ -44,6 +44,7 @@ export default function LeavesPage({ user }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [actionLoadingId, setActionLoadingId] = useState(null);
   const [formData, setFormData] = useState({
     startDate: '',
     endDate: '',
@@ -68,6 +69,27 @@ export default function LeavesPage({ user }) {
       toast.error(error.message || 'Failed to load leaves');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (leaveId, nextStatus) => {
+    const actionText = nextStatus === 'APPROVED' ? 'approve' : 'decline';
+
+    const confirmed = window.confirm(`Are you sure you want to ${actionText} this leave request?`);
+    if (!confirmed) return;
+
+    try {
+      setActionLoadingId(leaveId);
+      await apiFetch(`/api/leaves/${leaveId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      toast.success(`Leave ${actionText}d successfully`);
+      loadLeaves();
+    } catch (error) {
+      toast.error(error.message || `Failed to ${actionText} leave`);
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
@@ -195,6 +217,7 @@ export default function LeavesPage({ user }) {
                     <th className="py-3 px-4">Status</th>
                     <th className="py-3 px-4">Reason</th>
                     <th className="py-3 px-4">Applied</th>
+                    {isAdminOrHR && <th className="py-3 px-4 text-right">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -229,6 +252,36 @@ export default function LeavesPage({ user }) {
                       <td className="py-3 px-4 text-xs text-muted-foreground">
                         {formatDateTime(leave.createdAt)}
                       </td>
+                      {isAdminOrHR && (
+                        <td className="py-3 px-4">
+                          {leave.status === 'PENDING' ? (
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={actionLoadingId === leave.id}
+                                onClick={() => handleStatusChange(leave.id, 'REJECTED')}
+                              >
+                                Decline
+                              </Button>
+                              <Button
+                                size="sm"
+                                disabled={actionLoadingId === leave.id}
+                                onClick={() => handleStatusChange(leave.id, 'APPROVED')}
+                              >
+                                {actionLoadingId === leave.id ? (
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : null}
+                                Approve
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="text-right text-xs text-muted-foreground">
+                              Updated {formatDateTime(leave.updatedAt || leave.createdAt)}
+                            </div>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
