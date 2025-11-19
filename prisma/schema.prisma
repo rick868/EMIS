@@ -3,20 +3,20 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
   id                Int      @id @default(autoincrement())
   username          String   @unique
   email             String   @unique
-  passwordHash      String
+  passwordHash      String   @default("") @map("password_hash")
   role              Role     @default(EMPLOYEE)
-  resetToken        String?
-  resetTokenExpiry  DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  resetToken        String?  @map("reset_token")
+  resetTokenExpiry  DateTime? @map("reset_token_expiry")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
 
   employee          Employee?
   logs              Log[]
@@ -28,30 +28,32 @@ model Employee {
   id           Int      @id @default(autoincrement())
   name         String
   department   String
-  departmentId Int?
+  departmentId Int?     @map("department_id")
   position     String
   salary       Float
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now()) @map("date_joined")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
 
-  userId       Int?     @unique
+  userId       Int?     @unique @map("user_id")
   user         User?    @relation(fields: [userId], references: [id])
   feedback     Feedback[]
   departmentRef Department? @relation(fields: [departmentId], references: [id])
+  attendance   Attendance[]
+  leaves       Leave[]
 
   @@map("employees")
 }
 
 model Feedback {
   id            Int      @id @default(autoincrement())
-  employeeId    Int
+  employeeId    Int?     @map("employee_id")
   category      String
-  categoryId    Int?
+  categoryId    Int?     @map("category_id")
   message       String
-  dateSubmitted DateTime @default(now())
+  dateSubmitted DateTime @default(now()) @map("date_submitted")
 
-  employee      Employee     @relation(fields: [employeeId], references: [id])
-  category      FeedbackCategory? @relation(fields: [categoryId], references: [id])
+  employee      Employee?        @relation(fields: [employeeId], references: [id])
+  categoryRef   FeedbackCategory? @relation(fields: [categoryId], references: [id])
 
   @@map("feedback")
 }
@@ -59,10 +61,10 @@ model Feedback {
 model Log {
   id        Int      @id @default(autoincrement())
   action    String
-  userId    Int?
+  userId    Int?     @map("user_id")
   details   String
   timestamp DateTime @default(now())
-  ipAddress String?
+  ipAddress String?  @map("ip_address")
 
   user      User? @relation(fields: [userId], references: [id])
 
@@ -73,8 +75,8 @@ model Department {
   id          Int      @id @default(autoincrement())
   name        String   @unique
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
   employees   Employee[]
 
@@ -85,8 +87,8 @@ model FeedbackCategory {
   id          Int      @id @default(autoincrement())
   name        String   @unique
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
   feedback    Feedback[]
 
