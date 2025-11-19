@@ -1,109 +1,169 @@
 # Employee Management Information System (EMIS)
 
-A cross-platform desktop application built with Electron, React, Express, and PostgreSQL.
+EMIS is a modern Employee Management Information System built by **CoreForge Solutions (CFS)** for HR teams, people managers, and distributed organizations. It bundles a responsive React experience with an embedded Express API and ships inside an Electron shell, so the exact same build works on Windows, macOS, and Debian/Ubuntu desktops.
 
-## Features
+## What you can do with EMIS
 
-- 🔐 Secure JWT-based authentication with role-based access control
-- 👥 Employee information management
-- 💬 Feedback collection and analysis system
-- 📊 Analytics dashboard with real-time visualizations
-- 🎨 Modern, responsive UI with dark/light theme support
-- 🔒 Admin controls for system management
+- **Employee directory & lifecycle**  
+  Create, edit, archive, and export employee profiles with department assignments, salary visibility (KSh formatting), and advanced search filters.
+- **Leave & attendance management**  
+  Employees apply for leave, HR/Admin approve or decline requests, and leadership can track attendance rates over rolling windows.
+- **Feedback & engagement**  
+  Collect categorized feedback, analyze category share, and let HR curate categories dynamically.
+- **Analytics dashboards**  
+  Track KPIs such as workforce distribution, feedback trends, salary averages, attendance rate, open leave tickets, and more.
+- **Security & reliability**  
+  Role-based access (Admin, HR, Employee), rate limiting, JWT auth, CSRF strategy, and Prisma-backed audit logging.
+- **Productivity niceties**  
+  Toast notifications, keyboard shortcuts, CSV/PDF exports, responsive tables/cards, dark mode persistence, and offline-friendly Electron packaging.
 
-## Tech Stack
+## Tech stack at a glance
 
-- **Frontend**: React + TailwindCSS + shadcn/ui
-- **Backend**: Node.js + Express (embedded in Electron)
-- **Database**: PostgreSQL with Prisma ORM
-- **Desktop**: Electron
-- **Charts**: Recharts
-- **Authentication**: JWT + bcrypt
+| Layer        | Tools                                                                 |
+|--------------|-----------------------------------------------------------------------|
+| Desktop shell| Electron (Chromium + Node runtime)                                    |
+| Frontend     | React 18, Vite, Tailwind CSS, shadcn/ui primitives, Recharts          |
+| Backend API  | Express.js (served inside Electron), JWT auth, rate limiting, Nodemailer |
+| Database     | PostgreSQL + Prisma ORM                                               |
+| Tooling      | ESLint, Vite dev server, pnpm/npm scripts                             |
 
-## Setup Instructions
+## Getting started
 
-### Prerequisites
+### 1. Prerequisites
 
-- Node.js (v18 or higher)
-- PostgreSQL (v14 or higher)
-- npm or yarn
+- Node.js 18+
+- PostgreSQL 14+ (local or hosted; Neon works out of the box)
+- npm or pnpm
 
-### Installation
+### 2. Install dependencies
 
-1. Clone the repository and install dependencies:
 ```bash
+git clone <repo-url>
+cd EMS
 npm install
 ```
 
-2. Set up PostgreSQL database:
-```bash
-# Create a PostgreSQL database named 'emis_db'
-createdb emis_db
-```
+### 3. Configure environment
 
-3. Configure environment variables:
 ```bash
-# Copy the example env file
 cp .env.example .env
-
-# Edit .env and update with your PostgreSQL credentials:
-# DATABASE_URL="postgresql://username:password@localhost:5432/emis_db?schema=public"
+# Edit .env
+DATABASE_URL="postgresql://user:password@localhost:5432/emis_db?schema=public"
+JWT_SECRET="set-a-strong-secret"
+EMAIL_SMTP_URL="smtp://..."
 ```
 
-4. Run Prisma migrations:
+### 4. Database migration
+
 ```bash
-npx prisma migrate dev --name init
+npx prisma migrate dev --name init        # or add_leave_support if continuing work
 npx prisma generate
+# (Optional) prisma/seed.js is intentionally disabled in production builds.
+# Create your first admin manually (see below).
 ```
 
-5. Seed the database with initial data:
-```bash
-node prisma/seed.js
-```
+> **Note:** If your production database already contains data, review the Prisma warnings before running migrations and backfill the new columns (attendance, leave, employee-user links) accordingly.
 
-### Development
+### 5. Development workflow
 
-Run the application in development mode:
+Run the desktop app (Electron + Vite dev server):
+
 ```bash
 npm run dev
 ```
 
-### Building
+This launches:
+- `electron/main.js` (main process + embedded Express API on port 3001 by default)
+- Vite dev server for the React UI (port 5173)
 
-Build the application for your platform:
+### 6. Production builds
+
 ```bash
-# Build for all platforms
-npm run build
-
-# Build for specific platforms
-npm run build:win    # Windows
-npm run build:mac    # macOS
-npm run build:linux  # Linux
+npm run build          # builds renderer + bundles Electron
+npm run build:win      # Windows .exe
+npm run build:mac      # macOS .app / dmg
+npm run build:linux    # Linux AppImage
 ```
 
-## Default Login Credentials
+Distribute the generated artifacts found under `dist/`.
 
-After seeding the database, use these credentials:
+## Provisioning the first admin
 
-- **Admin**: admin@emis.com / admin123
-- **HR**: hr@emis.com / hr123
-- **Employee**: employee@emis.com / emp123
+The automatic seed script is disabled in production deployments. Create your first admin manually using one of the following approaches:
 
-## Project Structure
+1. **Prisma Studio**
+   ```bash
+   npx prisma studio
+   ```
+   - Add a new `User` with role `ADMIN`, email/username of your choice, and a bcrypt-hashed password.
+   - Optionally create a matching `Employee` record and connect it via `userId`.
+
+2. **SQL insert**
+   ```sql
+   INSERT INTO users (username, email, password_hash, role)
+   VALUES ('admin', 'you@example.com', '$2b$10$...', 'ADMIN');
+   ```
+   Generate the bcrypt hash with `npx bcrypt-cli hash 'StrongPassword'`.
+
+Once the first admin is created, use the EMIS UI (Settings → Users) to onboard HR and employees.
+
+## Project structure
 
 ```
-emis-electron/
-├── electron/          # Electron main process and API server
-├── prisma/            # Database schema and migrations
-├── src/              # React application
-│   ├── components/   # Reusable UI components
-│   ├── pages/        # Application pages
-│   ├── lib/          # Utility functions
-│   └── App.jsx       # Main React component
-├── public/           # Static assets
-└── package.json      # Dependencies and scripts
+EMS/
+├── electron/           # Electron entry + Express API
+├── prisma/             # Prisma schema, migrations, seed scripts
+├── src/                # React app (pages, components, hooks)
+│   ├── components/
+│   ├── pages/
+│   ├── lib/
+│   └── App.jsx
+├── public/
+└── package.json
 ```
+
+## Using EMIS day-to-day
+
+- HR/Admin log in via the Electron desktop client (or Vite dev server during development).
+- Employees manage their own profiles, submit feedback, and apply for leave.
+- HR/Administrators review leave requests, analyze dashboards, manage departments/categories, and export data for payroll or compliance.
+- Toast notifications and keyboard shortcuts guide workflows (e.g., `Ctrl+N` to add an employee, `Ctrl+E` to export).
+
+## Contributing & extending
+
+- Use feature branches and run `npm run lint` before opening a pull request.
+- Prisma schema changes should be accompanied by migration SQL plus any backfill scripts.
+- The `IMPROVEMENT_AREAS.md` file lists prioritized enhancements (security, data management, analytics) for future contributors.
 
 ## License
 
-MIT
+MIT — feel free to adapt EMIS for your organization, and please contribute improvements back when possible. If you need enterprise support, extended modules, or white-label builds, reach out to **CoreForge Solutions (CFS)**.
+
+## Installing EMIS on your device
+
+### Windows (10/11)
+1. Download the latest `EMIS-Setup-x.y.z.exe` from your release server.
+2. Run the installer (requires standard user privileges); follow the Wizard prompts.
+3. Launch EMIS from the Start Menu. The embedded API starts automatically.
+4. If Windows Defender SmartScreen warns you, choose “More info” → “Run anyway” (until you sign the binary).
+
+### macOS (Ventura+)
+1. Download `EMIS-x.y.z.dmg`.
+2. Double-click the DMG, drag **EMIS.app** into `/Applications`.
+3. On first launch, macOS Gatekeeper may block the unsigned app; open **System Settings → Privacy & Security** and click “Open Anyway”.
+4. The menu-bar icon indicates when the internal API is running.
+
+### Linux (Ubuntu/Debian/Fedora)
+1. Download `EMIS-x.y.z.AppImage` or the `.deb`/`.rpm` build if provided.
+2. For AppImage:
+   ```bash
+   chmod +x EMIS-x.y.z.AppImage
+   ./EMIS-x.y.z.AppImage
+   ```
+3. For `.deb`:
+   ```bash
+   sudo dpkg -i EMIS_x.y.z_amd64.deb
+   ```
+4. Launch EMIS from your applications menu; logs are stored under `~/.config/EMIS/logs`.
+
+> **Tip:** When distributing updates, sign your binaries/notarize the macOS build so OS dialogs show your company name.
