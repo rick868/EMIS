@@ -37,6 +37,7 @@ export default function EmployeesPage({ user }) {
   const debouncedSearch = useDebounce(search, 500);
 
   const isAdmin = user.role === 'ADMIN';
+  const canManageEmployees = isAdmin || user.role === 'HR';
 
   useEffect(() => {
     loadDepartments();
@@ -49,7 +50,7 @@ export default function EmployeesPage({ user }) {
   // Keyboard shortcuts
   useKeyboardShortcuts({
     'ctrl+n': () => {
-      if (isAdmin) {
+      if (canManageEmployees) {
         setIsAddDialogOpen(true);
       }
     },
@@ -58,7 +59,7 @@ export default function EmployeesPage({ user }) {
         handleExportCSV();
       }
     },
-  }, [isAdmin, employees]);
+  }, [canManageEmployees, employees]);
 
   const loadDepartments = async () => {
     try {
@@ -301,7 +302,7 @@ export default function EmployeesPage({ user }) {
               </Button>
             </>
           )}
-          {isAdmin && (
+          {canManageEmployees && (
             <Button onClick={() => setIsAddDialogOpen(true)} className="flex-1 sm:flex-none" title="Add Employee (Ctrl+N)">
               <Plus className="w-4 h-4 mr-2" />
               <span className="hidden sm:inline">Add Employee</span>
@@ -429,7 +430,7 @@ export default function EmployeesPage({ user }) {
                       <th className="text-left p-4 font-semibold">Position</th>
                       <th className="text-left p-4 font-semibold">Salary</th>
                       <th className="text-left p-4 font-semibold">Date Joined</th>
-                      {isAdmin && <th className="text-left p-4 font-semibold">Actions</th>}
+                      {canManageEmployees && <th className="text-left p-4 font-semibold">Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -440,7 +441,7 @@ export default function EmployeesPage({ user }) {
                         <td className="p-4">{employee.position}</td>
                         <td className="p-4">{formatCurrency(employee.salary)}</td>
                         <td className="p-4">{formatDate(employee.dateJoined)}</td>
-                        {isAdmin && (
+                        {canManageEmployees && (
                           <td className="p-4">
                             <div className="flex gap-2">
                               <Button
@@ -450,13 +451,15 @@ export default function EmployeesPage({ user }) {
                               >
                                 <Edit className="w-4 h-4" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openDeleteDialog(employee)}
-                              >
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                              </Button>
+                              {isAdmin && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openDeleteDialog(employee)}
+                                >
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              )}
                             </div>
                           </td>
                         )}
@@ -477,7 +480,7 @@ export default function EmployeesPage({ user }) {
                             <h3 className="font-semibold text-lg">{employee.name}</h3>
                             <p className="text-sm text-muted-foreground">{employee.position}</p>
                           </div>
-                          {isAdmin && (
+                          {canManageEmployees && (
                             <div className="flex gap-2">
                               <Button
                                 variant="ghost"
@@ -487,14 +490,16 @@ export default function EmployeesPage({ user }) {
                               >
                                 <Edit className="w-4 h-4" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openDeleteDialog(employee)}
-                                aria-label={`Delete ${employee.name}`}
-                              >
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                              </Button>
+                              {isAdmin && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openDeleteDialog(employee)}
+                                  aria-label={`Delete ${employee.name}`}
+                                >
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              )}
                             </div>
                           )}
                         </div>

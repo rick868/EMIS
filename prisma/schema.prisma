@@ -92,8 +92,54 @@ model FeedbackCategory {
   @@map("feedback_categories")
 }
 
+model Attendance {
+  id         Int              @id @default(autoincrement())
+  employeeId Int
+  date       DateTime
+  status     AttendanceStatus
+  createdAt  DateTime         @default(now())
+
+  employee   Employee         @relation(fields: [employeeId], references: [id])
+
+  @@unique([employeeId, date])
+  @@map("attendance")
+}
+
+model Leave {
+  id         Int         @id @default(autoincrement())
+  employeeId Int
+  startDate  DateTime
+  endDate    DateTime
+  type       LeaveType
+  status     LeaveStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+
+  employee   Employee    @relation(fields: [employeeId], references: [id])
+
+  @@map("leaves")
+}
+
 enum Role {
   ADMIN
   HR
   EMPLOYEE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LEAVE
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  UNPAID
+  OTHER
 }

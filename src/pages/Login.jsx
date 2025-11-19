@@ -12,6 +12,7 @@ export default function Login({ onLogin }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   useEffect(() => {
     // Get API URL from Electron
@@ -87,7 +88,7 @@ export default function Login({ onLogin }) {
                 autoComplete="current-password"
               />
             </div>
-            
+
             {error && (
               <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-3 rounded-md">
                 <AlertCircle className="w-4 h-4" />
@@ -118,6 +119,10 @@ export default function Login({ onLogin }) {
           </div>
         </CardContent>
       </Card>
+      <ForgotPasswordModal
+        isOpen={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
+      />
     </div>
   );
 }

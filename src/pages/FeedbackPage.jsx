@@ -29,7 +29,7 @@ export default function FeedbackPage({ user }) {
     message: '',
   });
 
-  const canViewAllFeedback = user.role === 'ADMIN' || user.role === 'HR';
+  const canViewAllFeedback = user.role === 'ADMIN';
 
   useEffect(() => {
     loadCategories();

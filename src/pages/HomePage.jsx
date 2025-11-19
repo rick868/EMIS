@@ -15,7 +15,7 @@ export default function HomePage({ user }) {
     try {
       if (user.role === 'ADMIN' || user.role === 'HR') {
         const data = await apiFetch('/api/analytics');
-        setStats(data.totals);
+        setStats(data);
       }
     } catch (error) {
       console.error('Failed to load stats:', error);
@@ -27,25 +27,41 @@ export default function HomePage({ user }) {
   const statCards = [
     {
       title: 'Total Employees',
-      value: stats?.employees || 0,
+      value: stats?.totals?.employees || 0,
       icon: Users,
       color: 'text-blue-600',
       bgColor: 'bg-blue-100',
     },
     {
       title: 'Total Feedback',
-      value: stats?.feedback || 0,
+      value: stats?.totals?.feedback || 0,
       icon: MessageSquare,
       color: 'text-green-600',
       bgColor: 'bg-green-100',
     },
     {
-      title: 'System Users',
-      value: stats?.users || 0,
-      icon: Activity,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-100',
+      title: 'Attendance Rate (30d)',
+      value:
+        stats?.attendance && stats.attendance.overallRate !== undefined
+          ? `${stats.attendance.overallRate}%`
+          : 'N/A',
+      icon: TrendingUp,
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-100',
     },
+    ...(user.role === 'ADMIN'
+      ? [
+        {
+          title: 'Open Leave Requests',
+          value:
+            stats?.leaveStatus?.find((l) => l.status === 'PENDING')?.count ||
+            0,
+          icon: Activity,
+          color: 'text-amber-600',
+          bgColor: 'bg-amber-100',
+        },
+      ]
+      : []),
   ];
 
   return (

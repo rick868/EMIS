@@ -14,7 +14,7 @@ function App() {
     // Check for existing session
     const storedUser = storage.getUser();
     const token = storage.getToken();
-    
+
     if (storedUser && token) {
       setUser(storedUser);
     }
@@ -54,6 +54,10 @@ function App() {
                 <Login onLogin={handleLogin} />
               )
             }
+          />
+          <Route
+            path="/reset-password"
+            element={<ResetPassword />}
           />
           <Route
             path="/dashboard/*"

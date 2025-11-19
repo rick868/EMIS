@@ -12,6 +12,7 @@ const nodemailer = require('nodemailer');
 
 const prisma = new PrismaClient();
 const app = express();
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync('dummy-password', 10);
 
 // Validate JWT_SECRET in production
 if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
@@ -51,8 +52,8 @@ app.use(helmet({
 
 // Configure CORS for production and development
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['app://.'] 
+  origin: process.env.NODE_ENV === 'production'
+    ? ['app://.']
     : ['http://localhost:5173', 'http://localhost:3001'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -70,8 +71,8 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later.' },
   skip: req => {
     // Skip rate limiting for static assets in production
-    return process.env.NODE_ENV === 'production' && 
-           (req.path.startsWith('/static/') || req.path.endsWith('.js'));
+    return process.env.NODE_ENV === 'production' &&
+      (req.path.startsWith('/static/') || req.path.endsWith('.js'));
   }
 });
 
@@ -116,15 +117,9 @@ const csrfProtection = csrf({
   }
 });
 
-// Apply CSRF protection to non-API routes and specific API routes
+// Apply CSRF protection to non-API routes only
 app.use((req, res, next) => {
-  if (req.path.startsWith('/api/') && ![
-    '/api/auth/login',
-    '/api/auth/refresh',
-    '/api/auth/logout',
-    '/api/auth/forgot-password',
-    '/api/auth/reset-password'
-  ].includes(req.path)) {
+  if (req.path.startsWith('/api/')) {
     return next();
   }
   csrfProtection(req, res, next);
@@ -144,9 +139,9 @@ app.use((req, res, next) => {
 // JWT token generation
 const generateTokens = (user) => {
   const accessToken = jwt.sign(
-    { 
-      id: user.id, 
-      email: user.email, 
+    {
+      id: user.id,
+      email: user.email,
       role: user.role,
       type: 'access'
     },
@@ -155,7 +150,7 @@ const generateTokens = (user) => {
   );
 
   const refreshToken = jwt.sign(
-    { 
+    {
       id: user.id,
       email: user.email,
       type: 'refresh'
@@ -174,8 +169,8 @@ const refreshTokens = new Set();
 const authenticateToken = async (req, res, next) => {
   // Get token from Authorization header or cookies
   const authHeader = req.headers['authorization'];
-  const token = authHeader?.startsWith('Bearer ') 
-    ? authHeader.split(' ')[1] 
+  const token = authHeader?.startsWith('Bearer ')
+    ? authHeader.split(' ')[1]
     : req.cookies?.accessToken;
 
   if (!token) {
@@ -185,7 +180,7 @@ const authenticateToken = async (req, res, next) => {
   try {
     // Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
-    
+
     // Check if token is an access token
     if (decoded.type !== 'access') {
       return res.status(403).json({ error: 'Invalid token type' });
@@ -212,7 +207,7 @@ const authenticateToken = async (req, res, next) => {
     next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Token expired',
         code: 'TOKEN_EXPIRED'
       });
@@ -239,7 +234,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Email and password are required',
         code: 'MISSING_CREDENTIALS'
       });
@@ -253,8 +248,8 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 
     if (!user) {
       // Simulate password verification to prevent timing attacks
-      await bcrypt.compare('dummy-password', '$2b$10$dummyhash');
-      return res.status(401).json({ 
+      await bcrypt.compare('dummy-password', DUMMY_PASSWORD_HASH);
+      return res.status(401).json({
         error: 'Invalid email or password',
         code: 'INVALID_CREDENTIALS'
       });
@@ -263,7 +258,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     // Verify password
     const validPassword = await bcrypt.compare(password, user.passwordHash);
     if (!validPassword) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Invalid email or password',
         code: 'INVALID_CREDENTIALS'
       });
@@ -271,7 +266,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 
     // Generate tokens
     const { accessToken, refreshToken } = generateTokens(user);
-    
+
     // Store refresh token (in production, use Redis or database)
     refreshTokens.add(refreshToken);
 
@@ -297,14 +292,13 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
       data: {
         action: 'USER_LOGIN',
         userId: user.id,
-        details: `User ${user.username} logged in`,
-        ipAddress: req.ip
+        details: `User ${user.username} logged in from IP ${req.ip}`,
       },
     });
 
     // Return user data (excluding password)
     const { passwordHash, ...userData } = user;
-    
+
     res.json({
       user: userData,
       // For clients that can't use httpOnly cookies
@@ -313,7 +307,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Internal server error',
       code: 'SERVER_ERROR'
     });
@@ -323,9 +317,9 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 // POST /api/auth/refresh - Refresh access token
 app.post('/api/auth/refresh', async (req, res) => {
   const { refreshToken } = req.cookies || req.body;
-  
+
   if (!refreshToken) {
-    return res.status(401).json({ 
+    return res.status(401).json({
       error: 'Refresh token required',
       code: 'REFRESH_TOKEN_REQUIRED'
     });
@@ -334,9 +328,9 @@ app.post('/api/auth/refresh', async (req, res) => {
   try {
     // Verify refresh token
     const decoded = jwt.verify(refreshToken, JWT_SECRET);
-    
+
     if (decoded.type !== 'refresh') {
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: 'Invalid token type',
         code: 'INVALID_TOKEN_TYPE'
       });
@@ -344,7 +338,7 @@ app.post('/api/auth/refresh', async (req, res) => {
 
     // In production, validate against stored refresh tokens
     if (!refreshTokens.has(refreshToken)) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: 'Invalid refresh token',
         code: 'INVALID_REFRESH_TOKEN'
       });
@@ -363,7 +357,7 @@ app.post('/api/auth/refresh', async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: 'User not found',
         code: 'USER_NOT_FOUND'
       });
@@ -371,7 +365,7 @@ app.post('/api/auth/refresh', async (req, res) => {
 
     // Generate new tokens
     const { accessToken, refreshToken: newRefreshToken } = generateTokens(user);
-    
+
     // Update refresh token in store
     refreshTokens.delete(refreshToken);
     refreshTokens.add(newRefreshToken);
@@ -399,15 +393,15 @@ app.post('/api/auth/refresh', async (req, res) => {
     });
   } catch (error) {
     console.error('Token refresh error:', error);
-    
+
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Refresh token expired',
         code: 'REFRESH_TOKEN_EXPIRED'
       });
     }
-    
-    res.status(403).json({ 
+
+    res.status(403).json({
       error: 'Invalid refresh token',
       code: 'INVALID_REFRESH_TOKEN'
     });
@@ -418,7 +412,7 @@ app.post('/api/auth/refresh', async (req, res) => {
 app.post('/api/auth/logout', authenticateToken, async (req, res) => {
   try {
     const { refreshToken } = req.cookies || req.body;
-    
+
     // Remove refresh token from store
     if (refreshToken) {
       refreshTokens.delete(refreshToken);
@@ -427,7 +421,7 @@ app.post('/api/auth/logout', authenticateToken, async (req, res) => {
     // Clear cookies
     res.clearCookie('accessToken', { path: '/api/' });
     res.clearCookie('refreshToken', { path: '/api/auth/refresh' });
-    
+
     // Log the logout
     await prisma.log.create({
       data: {
@@ -441,7 +435,7 @@ app.post('/api/auth/logout', authenticateToken, async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Logout error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Internal server error',
       code: 'SERVER_ERROR'
     });
@@ -663,7 +657,7 @@ app.get('/api/employees/:id', authenticateToken, async (req, res) => {
 });
 
 // POST /api/employees - Create employee (Admin only)
-app.post('/api/employees', authenticateToken, authorize('ADMIN'), async (req, res) => {
+app.post('/api/employees', authenticateToken, authorize('ADMIN', 'HR'), async (req, res) => {
   try {
     const { name, department, departmentId, position, salary } = req.body;
 
@@ -730,7 +724,7 @@ app.post('/api/employees', authenticateToken, authorize('ADMIN'), async (req, re
 });
 
 // PUT /api/employees/:id - Update employee (Admin only)
-app.put('/api/employees/:id', authenticateToken, authorize('ADMIN'), async (req, res) => {
+app.put('/api/employees/:id', authenticateToken, authorize('ADMIN', 'HR'), async (req, res) => {
   try {
     const { name, department, departmentId, position, salary } = req.body;
     const id = parseInt(req.params.id);
@@ -781,7 +775,7 @@ app.put('/api/employees/:id', authenticateToken, authorize('ADMIN'), async (req,
 app.delete('/api/employees/:id', authenticateToken, authorize('ADMIN'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    
+
     const employee = await prisma.employee.findUnique({ where: { id } });
     if (!employee) {
       return res.status(404).json({ error: 'Employee not found' });
@@ -807,7 +801,7 @@ app.delete('/api/employees/:id', authenticateToken, authorize('ADMIN'), async (r
 // ==================== FEEDBACK ROUTES ====================
 
 // GET /api/feedback - Get all feedback (Admin/HR)
-app.get('/api/feedback', authenticateToken, authorize('ADMIN', 'HR'), async (req, res) => {
+app.get('/api/feedback', authenticateToken, authorize('ADMIN'), async (req, res) => {
   try {
     const { category, page = 1, limit = 20 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -920,6 +914,65 @@ app.get('/api/analytics', authenticateToken, authorize('ADMIN', 'HR'), async (re
       prisma.user.count(),
     ]);
 
+    // Attendance & leave (last 30 days)
+    const attendanceWindowDays = 30;
+    const attendanceSince = new Date();
+    attendanceSince.setDate(attendanceSince.getDate() - attendanceWindowDays);
+
+    let attendanceSummary = null;
+    let leaveStatusSummary = null;
+
+    try {
+      const attendanceCounts = await prisma.attendance.groupBy({
+        by: ['status'],
+        _count: { id: true },
+        where: {
+          date: {
+            gte: attendanceSince,
+          },
+        },
+      });
+
+      const totalAttendanceRecords = attendanceCounts.reduce(
+        (sum, a) => sum + a._count.id,
+        0
+      );
+      const presentCount =
+        attendanceCounts.find((a) => a.status === 'PRESENT')?._count.id || 0;
+
+      const overallRate =
+        totalAttendanceRecords > 0
+          ? Math.round((presentCount / totalAttendanceRecords) * 100)
+          : 0;
+
+      attendanceSummary = {
+        periodDays: attendanceWindowDays,
+        totalRecords: totalAttendanceRecords,
+        present: presentCount,
+        absent:
+          attendanceCounts.find((a) => a.status === 'ABSENT')?._count.id || 0,
+        onLeave:
+          attendanceCounts.find((a) => a.status === 'LEAVE')?._count.id || 0,
+        overallRate,
+      };
+    } catch (attendanceError) {
+      console.error('Attendance analytics error:', attendanceError);
+    }
+
+    try {
+      const leaveCounts = await prisma.leave.groupBy({
+        by: ['status'],
+        _count: { id: true },
+      });
+
+      leaveStatusSummary = leaveCounts.map((l) => ({
+        status: l.status,
+        count: l._count.id,
+      }));
+    } catch (leaveError) {
+      console.error('Leave analytics error:', leaveError);
+    }
+
     // Average salary by department
     const avgSalaryByDept = await prisma.employee.groupBy({
       by: ['department'],
@@ -944,6 +997,8 @@ app.get('/api/analytics', authenticateToken, authorize('ADMIN', 'HR'), async (re
         feedback: totalFeedback,
         users: totalUsers,
       },
+      attendance: attendanceSummary,
+      leaveStatus: leaveStatusSummary,
       avgSalaryByDepartment: avgSalaryByDept.map(d => ({
         department: d.department,
         avgSalary: d._avg.salary,
@@ -1008,7 +1063,7 @@ app.get('/api/departments', authenticateToken, async (req, res) => {
     const departments = await prisma.department.findMany({
       orderBy: { name: 'asc' },
     });
-    
+
     // Update cache
     cache.departments = { data: departments, timestamp: now };
     res.json(departments);
@@ -1102,7 +1157,7 @@ app.put('/api/departments/:id', authenticateToken, authorize('ADMIN', 'HR'), asy
 app.delete('/api/departments/:id', authenticateToken, authorize('ADMIN'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    
+
     const department = await prisma.department.findUnique({ where: { id } });
     if (!department) {
       return res.status(404).json({ error: 'Department not found' });
@@ -1114,8 +1169,8 @@ app.delete('/api/departments/:id', authenticateToken, authorize('ADMIN'), async 
     });
 
     if (employeeCount > 0) {
-      return res.status(400).json({ 
-        error: `Cannot delete department. It has ${employeeCount} employee(s) assigned.` 
+      return res.status(400).json({
+        error: `Cannot delete department. It has ${employeeCount} employee(s) assigned.`
       });
     }
 
@@ -1153,7 +1208,7 @@ app.get('/api/feedback-categories', authenticateToken, async (req, res) => {
     const categories = await prisma.feedbackCategory.findMany({
       orderBy: { name: 'asc' },
     });
-    
+
     // Update cache
     cache.categories = { data: categories, timestamp: now };
     res.json(categories);
@@ -1247,7 +1302,7 @@ app.put('/api/feedback-categories/:id', authenticateToken, authorize('ADMIN', 'H
 app.delete('/api/feedback-categories/:id', authenticateToken, authorize('ADMIN'), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    
+
     const category = await prisma.feedbackCategory.findUnique({ where: { id } });
     if (!category) {
       return res.status(404).json({ error: 'Feedback category not found' });
@@ -1259,8 +1314,8 @@ app.delete('/api/feedback-categories/:id', authenticateToken, authorize('ADMIN')
     });
 
     if (feedbackCount > 0) {
-      return res.status(400).json({ 
-        error: `Cannot delete category. It has ${feedbackCount} feedback submission(s).` 
+      return res.status(400).json({
+        error: `Cannot delete category. It has ${feedbackCount} feedback submission(s).`
       });
     }
 
