@@ -8,6 +8,7 @@ const slowDown = require('express-slow-down');
 const cookieParser = require('cookie-parser');
 const csrf = require('csurf');
 const cors = require('cors');
+const nodemailer = require('nodemailer');
 
 const prisma = new PrismaClient();
 const app = express();
@@ -120,7 +121,9 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/api/') && ![
     '/api/auth/login',
     '/api/auth/refresh',
-    '/api/auth/logout'
+    '/api/auth/logout',
+    '/api/auth/forgot-password',
+    '/api/auth/reset-password'
   ].includes(req.path)) {
     return next();
   }
@@ -216,14 +219,6 @@ const authenticateToken = async (req, res, next) => {
     }
     return res.status(403).json({ error: 'Invalid token' });
   }
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: 'Invalid or expired token' });
-    }
-    req.user = user;
-    next();
-  });
 };
 
 // Role-based authorization middleware
@@ -476,6 +471,129 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
     res.json(user);
   } catch (error) {
     console.error('Get user error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/auth/forgot-password - Request password reset
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Find user by email
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      // Don't reveal if email exists or not for security
+      return res.json({ message: 'If the email exists, a reset link has been sent.' });
+    }
+
+    // Generate reset token
+    const resetToken = jwt.sign(
+      { id: user.id, type: 'reset' },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    // Store reset token in database
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetToken,
+        resetTokenExpiry: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+      },
+    });
+
+    // Send reset email
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Password Reset Request - Employee Management System',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Password Reset Request</h2>
+          <p>You requested a password reset for your Employee Management System account.</p>
+          <p>Click the link below to reset your password:</p>
+          <a href="${resetUrl}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0;">Reset Password</a>
+          <p>This link will expire in 1 hour.</p>
+          <p>If you didn't request this reset, please ignore this email.</p>
+          <p>For security reasons, do not share this email with anyone.</p>
+        </div>
+      `,
+    };
+
+    await emailTransporter.sendMail(mailOptions);
+
+    res.json({ message: 'If the email exists, a reset link has been sent.' });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/auth/reset-password - Reset password with token
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+
+    // Verify token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+      if (decoded.type !== 'reset') {
+        return res.status(400).json({ error: 'Invalid token type' });
+      }
+    } catch (error) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+
+    // Find user and check token
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+    });
+
+    if (!user || user.resetToken !== token || !user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+
+    // Hash new password
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    // Update password and clear reset token
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        resetToken: null,
+        resetTokenExpiry: null,
+      },
+    });
+
+    // Log the password reset
+    await prisma.log.create({
+      data: {
+        action: 'PASSWORD_RESET',
+        userId: user.id,
+        details: `Password reset for user: ${user.username}`,
+        ipAddress: req.ip,
+      },
+    });
+
+    res.json({ message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Reset password error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

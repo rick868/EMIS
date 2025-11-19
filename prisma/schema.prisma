@@ -1,71 +1,56 @@
-// This is your Prisma schema file
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
-  id           Int       @id @default(autoincrement())
-  username     String    @unique
-  email        String    @unique
-  passwordHash String    @map("password_hash")
-  role         Role      @default(EMPLOYEE)
-  createdAt    DateTime  @default(now()) @map("created_at")
-  employee     Employee?
+  id                Int      @id @default(autoincrement())
+  username          String   @unique
+  email             String   @unique
+  passwordHash      String
+  role              Role     @default(EMPLOYEE)
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  employee          Employee?
+  logs              Log[]
 
   @@map("users")
 }
 
-model Department {
-  id          Int        @id @default(autoincrement())
-  name        String     @unique
-  description String?
-  createdAt   DateTime   @default(now()) @map("created_at")
-  employees   Employee[]
-
-  @@map("departments")
-}
-
 model Employee {
-  id           Int        @id @default(autoincrement())
+  id           Int      @id @default(autoincrement())
   name         String
   department   String
-  departmentId Int?       @map("department_id")
+  departmentId Int?
   position     String
   salary       Float
-  dateJoined   DateTime   @default(now()) @map("date_joined")
-  userId       Int?       @unique @map("user_id")
-  user         User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  departmentRef Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User?
   feedback     Feedback[]
+  departmentRef Department? @relation(fields: [departmentId], references: [id])
 
   @@map("employees")
 }
 
-model FeedbackCategory {
-  id          Int        @id @default(autoincrement())
-  name        String     @unique
-  description String?
-  createdAt   DateTime  @default(now()) @map("created_at")
-  feedback    Feedback[]
-
-  @@map("feedback_categories")
-}
-
 model Feedback {
   id            Int      @id @default(autoincrement())
-  employeeId    Int      @map("employee_id")
+  employeeId    Int
   category      String
-  categoryId    Int?     @map("category_id")
+  categoryId    Int?
   message       String
-  dateSubmitted DateTime @default(now()) @map("date_submitted")
-  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  categoryRef   FeedbackCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  dateSubmitted DateTime @default(now())
+
+  employee      Employee     @relation(fields: [employeeId], references: [id])
+  category      FeedbackCategory? @relation(fields: [categoryId], references: [id])
 
   @@map("feedback")
 }
@@ -73,11 +58,38 @@ model Feedback {
 model Log {
   id        Int      @id @default(autoincrement())
   action    String
-  userId    Int      @map("user_id")
-  details   String?
+  userId    Int?
+  details   String
   timestamp DateTime @default(now())
+  ipAddress String?
+
+  user      User? @relation(fields: [userId], references: [id])
 
   @@map("logs")
+}
+
+model Department {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  employees   Employee[]
+
+  @@map("departments")
+}
+
+model FeedbackCategory {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  feedback    Feedback[]
+
+  @@map("feedback_categories")
 }
 
 enum Role {

@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiFetch, storage, setApiUrl } from '@/lib/utils';
 import { Building2, AlertCircle } from 'lucide-react';
+import ForgotPasswordModal from '@/components/ForgotPasswordModal';
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -102,7 +103,7 @@ export default function Login({ onLogin }) {
               <button
                 type="button"
                 className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                onClick={() => setError('Password recovery is not yet implemented.')}
+                onClick={() => setShowForgotPassword(true)}
               >
                 Forgot Password?
               </button>

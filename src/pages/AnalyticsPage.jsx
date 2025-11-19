@@ -200,7 +200,7 @@ export default function AnalyticsPage({ user }) {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="department" angle={-45} textAnchor="end" height={100} />
                 <YAxis
-                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                  tickFormatter={(value) => `KSh ${(value / 1000).toFixed(0)}k`}
                 />
                 <Tooltip
                   formatter={(value) => formatCurrency(value)}

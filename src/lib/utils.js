@@ -70,11 +70,13 @@ export const apiFetch = async (endpoint, options = {}) => {
   }
 };
 
-// Format currency
+// Format currency (KSH - Kenyan Shillings)
 export const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-KE', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'KES',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(amount);
 };
 
@@ -177,8 +179,8 @@ export const validators = {
     if (numSalary < 0) {
       return 'Salary cannot be negative';
     }
-    if (numSalary > 10000000) {
-      return 'Salary cannot exceed $10,000,000';
+    if (numSalary > 100000000) {
+      return 'Salary cannot exceed KSh 100,000,000';
     }
     return null;
   },
