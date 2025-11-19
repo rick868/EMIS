@@ -34,7 +34,8 @@ model Employee {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  user         User?
+  userId       Int?     @unique
+  user         User?    @relation(fields: [userId], references: [id])
   feedback     Feedback[]
   departmentRef Department? @relation(fields: [departmentId], references: [id])
 
@@ -112,6 +113,7 @@ model Leave {
   endDate    DateTime
   type       LeaveType
   status     LeaveStatus @default(PENDING)
+  reason     String?
   createdAt  DateTime    @default(now())
 
   employee   Employee    @relation(fields: [employeeId], references: [id])

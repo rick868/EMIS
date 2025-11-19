@@ -120,6 +120,17 @@ export default function HomePage({ user }) {
               Share your thoughts and suggestions
             </p>
           </a>
+          {user.role !== 'ADMIN' && (
+            <a
+              href="#/dashboard/leaves"
+              className="p-4 border rounded-lg hover:bg-accent transition-colors"
+            >
+              <h3 className="font-semibold mb-1">Apply for Leave</h3>
+              <p className="text-sm text-muted-foreground">
+                Send leave requests to your HR team
+              </p>
+            </a>
+          )}
           {(user.role === 'ADMIN' || user.role === 'HR') && (
             <a
               href="#/dashboard/analytics"

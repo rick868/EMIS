@@ -13,6 +13,7 @@ const nodemailer = require('nodemailer');
 const prisma = new PrismaClient();
 const app = express();
 const DUMMY_PASSWORD_HASH = bcrypt.hashSync('dummy-password', 10);
+const LEAVE_TYPES = ['ANNUAL', 'SICK', 'UNPAID', 'OTHER'];
 
 // Validate JWT_SECRET in production
 if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
@@ -164,6 +165,27 @@ const generateTokens = (user) => {
 
 // Store refresh tokens (in production, use Redis or database)
 const refreshTokens = new Set();
+
+const sanitizeText = (text = '', maxLength = 500) => {
+  if (typeof text !== 'string') return null;
+  return text.trim().slice(0, maxLength);
+};
+
+const getEmployeeProfile = async (user) => {
+  if (user?.employee) {
+    return user.employee;
+  }
+  if (!user?.id) return null;
+  return prisma.employee.findUnique({
+    where: { userId: user.id },
+    select: {
+      id: true,
+      name: true,
+      department: true,
+      position: true,
+    },
+  });
+};
 
 // Authentication middleware
 const authenticateToken = async (req, res, next) => {
@@ -872,6 +894,132 @@ app.post('/api/feedback', authenticateToken, async (req, res) => {
     res.status(201).json(feedback);
   } catch (error) {
     console.error('Submit feedback error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==================== LEAVE ROUTES ====================
+
+app.get('/api/leaves', authenticateToken, async (req, res) => {
+  try {
+    const includeEmployee = {
+      select: {
+        id: true,
+        name: true,
+        department: true,
+        position: true,
+      },
+    };
+
+    if (req.user.role === 'ADMIN' || req.user.role === 'HR') {
+      const { status } = req.query;
+      const where = {};
+      if (status && ['PENDING', 'APPROVED', 'REJECTED'].includes(status)) {
+        where.status = status;
+      }
+
+      const leaves = await prisma.leave.findMany({
+        where,
+        include: {
+          employee: includeEmployee,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      return res.json(leaves);
+    }
+
+    const employee = await getEmployeeProfile(req.user);
+    if (!employee) {
+      return res.status(400).json({
+        error: 'Employee profile not found. Contact an administrator.',
+      });
+    }
+
+    const leaves = await prisma.leave.findMany({
+      where: {
+        employeeId: employee.id,
+      },
+      include: {
+        employee: includeEmployee,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    res.json(leaves);
+  } catch (error) {
+    console.error('Get leaves error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/leaves', authenticateToken, async (req, res) => {
+  try {
+    const employee = await getEmployeeProfile(req.user);
+    if (!employee) {
+      return res.status(400).json({
+        error: 'Employee profile not found. Contact an administrator.',
+      });
+    }
+
+    const { startDate, endDate, type, reason } = req.body;
+
+    if (!startDate || !endDate || !type) {
+      return res.status(400).json({ error: 'Start date, end date, and leave type are required' });
+    }
+
+    const parsedStart = new Date(startDate);
+    const parsedEnd = new Date(endDate);
+
+    if (isNaN(parsedStart.getTime()) || isNaN(parsedEnd.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format' });
+    }
+
+    if (parsedEnd < parsedStart) {
+      return res.status(400).json({ error: 'End date must be after start date' });
+    }
+
+    if (!LEAVE_TYPES.includes(type)) {
+      return res.status(400).json({ error: 'Invalid leave type' });
+    }
+
+    const leave = await prisma.leave.create({
+      data: {
+        employeeId: employee.id,
+        startDate: parsedStart,
+        endDate: parsedEnd,
+        type,
+        status: 'PENDING',
+        reason: sanitizeText(reason || ''),
+      },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            name: true,
+            department: true,
+            position: true,
+          },
+        },
+      },
+    });
+
+    await prisma.log.create({
+      data: {
+        action: 'LEAVE_SUBMIT',
+        userId: req.user.id,
+        details: `Leave request #${leave.id} submitted by ${employee.name}`,
+        timestamp: new Date(),
+      },
+    });
+
+    res.status(201).json(leave);
+  } catch (error) {
+    console.error('Create leave error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Users, MessageSquare, BarChart3, Settings, LogOut, Moon, Sun, Menu, X } from 'lucide-react';
+import { Home, Users, MessageSquare, BarChart3, Settings, LogOut, Moon, Sun, Menu, X, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import HomePage from './HomePage';
 import EmployeesPage from './EmployeesPage';
 import FeedbackPage from './FeedbackPage';
 import AnalyticsPage from './AnalyticsPage';
 import SettingsPage from './SettingsPage';
+import LeavesPage from './LeavesPage';
 import KeyboardShortcutsDialog from '@/components/KeyboardShortcutsDialog';
 import { useKeyboardShortcuts } from '@/lib/keyboard-shortcuts';
 
@@ -73,9 +74,10 @@ export default function Dashboard({ user, onLogout }) {
     { name: 'Home', path: '/dashboard', icon: Home },
     { name: 'Employees', path: '/dashboard/employees', icon: Users },
     { name: 'Feedback', path: '/dashboard/feedback', icon: MessageSquare },
-    ...(user.role === 'ADMIN' || user.role === 'HR' ? [
-      { name: 'Analytics', path: '/dashboard/analytics', icon: BarChart3 }
-    ] : []),
+    { name: 'Leaves', path: '/dashboard/leaves', icon: Calendar },
+    ...(user.role === 'ADMIN' || user.role === 'HR'
+      ? [{ name: 'Analytics', path: '/dashboard/analytics', icon: BarChart3 }]
+      : []),
     { name: 'Settings', path: '/dashboard/settings', icon: Settings },
   ];
 
@@ -179,6 +181,7 @@ export default function Dashboard({ user, onLogout }) {
             <Route path="/" element={<HomePage user={user} />} />
             <Route path="/employees" element={<EmployeesPage user={user} />} />
             <Route path="/feedback" element={<FeedbackPage user={user} />} />
+            <Route path="/leaves" element={<LeavesPage user={user} />} />
             <Route path="/analytics" element={<AnalyticsPage user={user} />} />
             <Route path="/settings" element={<SettingsPage user={user} />} />
           </Routes>
